@@ -1,0 +1,4 @@
+NDVI Statistics:
+Min: 0.0, Max: 0.0, Mean: 0.0
+Deforested Pixels: 262144
+Percentage Deforested: 100.00%

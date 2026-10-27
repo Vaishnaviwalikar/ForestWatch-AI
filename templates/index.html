@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ForestWatch AI — Satellite Forest & Deforestation Intelligence</title>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet Mapping Library -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <!-- Main Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand" id="brand-home-btn" style="cursor: pointer;">
+                <div class="brand-logo">🌲</div>
+                <div class="brand-text">
+                    <span class="brand-title">ForestWatch <span class="accent-text">AI</span></span>
+                    <span class="brand-subtitle">Environmental Geospatial Intelligence</span>
+                </div>
+            </div>
+            
+            <div class="nav-links">
+                <button class="nav-link active" data-nav="overview">Overview</button>
+                <button class="nav-link" data-nav="explorer">Location Explorer</button>
+                <button class="nav-link" data-nav="vegetation">Vegetation Health</button>
+                <button class="nav-link" data-nav="change">Change Detection</button>
+                <button class="nav-link" data-nav="historical">Historical Trends</button>
+                <button class="nav-link" data-nav="reports">Reports & History</button>
+                <button class="nav-link" data-nav="settings">Settings</button>
+            </div>
+
+            <div class="nav-actions">
+                <span id="gee-status-badge" class="sensor-badge">🛰️ Sentinel-2 L2A Active</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Global Location Indicator Bar (Carries forward location across all workspaces) -->
+    <div class="location-banner">
+        <div class="location-banner-content">
+            <div class="current-loc-badge">
+                <span class="loc-pin">📍</span>
+                <span>Active Target: </span>
+                <strong id="active-location-name">Western Ghats Moist Forest (Karnataka, India)</strong>
+                <span class="pill-divider">•</span>
+                <span id="active-location-coords">15.0000° N, 75.0000° E</span>
+                <span class="pill-divider">•</span>
+                <span id="active-location-area">Radius: 2,000m (~1,256 ha)</span>
+            </div>
+            <button id="btn-quick-change-loc" class="btn-sm-outline">Change Location 🗺️</button>
+        </div>
+    </div>
+
+    <div class="app-layout">
+        <main class="main-container">
+
+            <!-- ===============================================================
+                 DASHBOARD 1: MAIN OVERVIEW (Control Center)
+                 =============================================================== -->
+            <section class="dashboard-workspace" id="ws-overview">
+                <!-- Hero Section -->
+                <div class="hero-card">
+                    <div class="hero-content">
+                        <div class="hero-badge">Copernicus Earth Observation • SCL Quality Masked</div>
+                        <h1 class="hero-title">Understand Your Forest. <span class="highlight-text">Track Every Change.</span></h1>
+                        <p class="hero-subtitle">
+                            Monitor vegetation vitality, explore historical satellite observations, and detect genuine canopy degradation using scientific NDVI metrics from Copernicus Sentinel-2.
+                        </p>
+                        <div class="hero-buttons">
+                            <button class="btn-hero-primary" id="btn-hero-explore">🗺️ Explore a Forest</button>
+                            <button class="btn-hero-primary" id="btn-hero-change">🔬 Start Change Detection</button>
+                            <button class="btn-hero-secondary" id="btn-hero-historical">📈 View Historical Trends</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KPI Metric Cards (Real application metrics) -->
+                <div class="kpi-grid">
+                    <div class="kpi-card" id="card-stat-locs">
+                        <div class="kpi-title">Saved Monitoring Areas</div>
+                        <div class="kpi-value text-success" id="stat-total-locations">6</div>
+                        <div class="kpi-sub">Protected reserves & parks</div>
+                    </div>
+                    <div class="kpi-card" id="card-stat-analyses">
+                        <div class="kpi-title">Completed Analyses</div>
+                        <div class="kpi-value text-info" id="stat-total-analyses">0</div>
+                        <div class="kpi-sub">Satellite intelligence runs</div>
+                    </div>
+                    <div class="kpi-card" id="card-stat-alerts">
+                        <div class="kpi-title">Active Change Alerts</div>
+                        <div class="kpi-value text-warning" id="stat-active-alerts">0</div>
+                        <div class="kpi-sub">Potential canopy decline zones</div>
+                    </div>
+                    <div class="kpi-card" id="card-stat-status">
+                        <div class="kpi-title">Copernicus Service Status</div>
+                        <div class="kpi-value text-success" id="stat-system-status">Operational</div>
+                        <div class="kpi-sub">Level-2A Surface Reflectance</div>
+                    </div>
+                </div>
+
+                <!-- Overview Map & Quick Actions Grid -->
+                <div class="overview-grid">
+                    <div class="card overview-map-card">
+                        <div class="card-header">
+                            <h3>🗺️ Monitored Forest Reserves</h3>
+                            <span class="card-subtitle">Click any reserve to inspect or launch an analysis</span>
+                        </div>
+                        <div id="overview-map" class="overview-map-canvas"></div>
+                    </div>
+
+                    <div class="card overview-actions-card">
+                        <div class="card-header">
+                            <h3>⚡ Quick Workspaces</h3>
+                        </div>
+                        <div class="quick-action-list">
+                            <div class="quick-action-item" id="qa-explorer">
+                                <div class="qa-icon">🛰️</div>
+                                <div class="qa-info">
+                                    <strong>Forest Location Explorer</strong>
+                                    <p>Live satellite true-color & NDVI layer inspection</p>
+                                </div>
+                                <span class="qa-arrow">→</span>
+                            </div>
+                            <div class="quick-action-item" id="qa-vegetation">
+                                <div class="quick-action-item-inner">
+                                    <div class="qa-icon">🌿</div>
+                                    <div class="qa-info">
+                                        <strong>Vegetation Health Workspace</strong>
+                                        <p>Compute single-epoch NDVI and canopy distribution</p>
+                                    </div>
+                                </div>
+                                <span class="qa-arrow">→</span>
+                            </div>
+                            <div class="quick-action-item" id="qa-change">
+                                <div class="qa-icon">⚖️</div>
+                                <div class="qa-info">
+                                    <strong>Change Detection Workspace</strong>
+                                    <p>Bi-temporal comparison & deforestation detection</p>
+                                </div>
+                                <span class="qa-arrow">→</span>
+                            </div>
+                            <div class="quick-action-item" id="qa-historical">
+                                <div class="qa-icon">📈</div>
+                                <div class="qa-info">
+                                    <strong>Multi-Year Historical Trends</strong>
+                                    <p>Annual composites & 2018–2024 time-series curves</p>
+                                </div>
+                                <span class="qa-arrow">→</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Analyses Table -->
+                <div class="card" style="margin-top: 24px;">
+                    <div class="card-header">
+                        <h3>📋 Recent Satellite Analyses</h3>
+                        <button class="btn-sm-outline" id="btn-view-all-reports">View All Reports →</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="history-table" id="overview-history-table">
+                            <thead>
+                                <tr>
+                                    <th>Analysis ID</th>
+                                    <th>Target Coordinates</th>
+                                    <th>Execution Date</th>
+                                    <th>Canopy Loss</th>
+                                    <th>Risk Level</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="overview-history-tbody">
+                                <tr><td colspan="7" style="text-align: center;">Loading analysis history...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+
+            <!-- ===============================================================
+                 DASHBOARD 2: FOREST LOCATION EXPLORER (Actual Satellite Imagery)
+                 =============================================================== -->
+            <section class="dashboard-workspace" id="ws-explorer" style="display: none;">
+                <div class="card">
+                    <div class="module-header">
+                        <div>
+                            <h2>🛰️ Forest Location Explorer</h2>
+                            <p class="section-desc">Search protected areas, inspect actual Sentinel-2 satellite imagery, and set monitoring boundaries.</p>
+                        </div>
+                        <div class="map-layer-controls">
+                            <button id="btn-layer-street" class="layer-btn active">🗺️ Street Map</button>
+                            <button id="btn-layer-satellite" class="layer-btn">🛰️ True-Color Satellite</button>
+                            <button id="btn-layer-ndvi" class="layer-btn">🌿 Live NDVI Layer</button>
+                        </div>
+                    </div>
+
+                    <!-- Search Bar with Geocoding -->
+                    <div class="search-bar-container">
+                        <div class="search-input-wrapper">
+                            <span class="search-icon">🔍</span>
+                            <input type="text" id="location-search-input" class="search-input" placeholder="Search forests, national parks, reserves, or coordinates (e.g. Corbett, Amazon, Western Ghats)...">
+                            <button id="search-clear-btn" class="search-clear-btn">&times;</button>
+                        </div>
+                        <div id="search-dropdown" class="search-dropdown" style="display: none;"></div>
+                    </div>
+
+                    <!-- Location Metadata & Satellite Observation Info Banner -->
+                    <div class="satellite-meta-bar" id="satellite-meta-bar">
+                        <div class="meta-item">
+                            <span class="meta-label">Observation Date:</span>
+                            <strong id="meta-acq-date">Latest Available Scene</strong>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Cloud Cover:</span>
+                            <strong id="meta-cloud-pct">&lt; 15% (SCL Filtered)</strong>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Mission:</span>
+                            <strong>Copernicus Sentinel-2 L2A</strong>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Quality Status:</span>
+                            <span class="badge badge-green" id="meta-quality-flag">High Confidence</span>
+                        </div>
+                    </div>
+
+                    <!-- Leaflet Map Canvas -->
+                    <div id="explorer-map-canvas" class="map-canvas"></div>
+
+                    <!-- Map Footer & Geometry Controls -->
+                    <div class="explorer-footer">
+                        <div class="selected-coords-pill">
+                            <span>Selected Center: </span>
+                            <strong id="display-coords">15.0000° N, 75.0000° E</strong>
+                            <span class="pill-divider">•</span>
+                            <span>Radius: </span>
+                            <strong id="display-radius">2,000 meters (~1,256 ha)</strong>
+                        </div>
+                        <div class="explorer-actions">
+                            <button id="btn-save-location" class="btn-outline-green">💾 Save Location</button>
+                            <button id="btn-carry-analysis" class="btn-solid-green">Carry to Analysis Workspace →</button>
+                        </div>
+                    </div>
+
+                    <!-- Saved Monitoring Locations Grid -->
+                    <div class="saved-locations-section">
+                        <h3>Saved Monitoring Locations</h3>
+                        <div id="saved-locations-list" class="saved-locations-grid"></div>
+                    </div>
+                </div>
+            </section>
+
+
+            <!-- ===============================================================
+                 DASHBOARD 3: VEGETATION HEALTH ANALYSIS
+                 =============================================================== -->
+            <section class="dashboard-workspace" id="ws-vegetation" style="display: none;">
+                <div class="card control-card">
+                    <div class="module-header">
+                        <div>
+                            <h2>🌿 Vegetation Health Workspace</h2>
+                            <p class="section-desc">Assess vegetation vitality and canopy density distributions for the active monitoring zone.</p>
+                        </div>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="veg-lat">Latitude (°N/S):</label>
+                            <input type="number" id="veg-lat" class="form-control" step="0.0001" value="15.0000">
+                        </div>
+                        <div class="form-group">
+                            <label for="veg-lon">Longitude (°E/W):</label>
+                            <input type="number" id="veg-lon" class="form-control" step="0.0001" value="75.0000">
+                        </div>
+                        <div class="form-group">
+                            <label for="veg-start-date">Observation Period Start:</label>
+                            <input type="date" id="veg-start-date" class="form-control" value="2023-01-01">
+                        </div>
+                        <div class="form-group">
+                            <label for="veg-end-date">Observation Period End:</label>
+                            <input type="date" id="veg-end-date" class="form-control" value="2023-05-31">
+                        </div>
+                    </div>
+
+                    <div class="button-container">
+                        <button id="btn-run-veg-analysis" class="primary-button">🌿 Analyze Vegetation Health</button>
+                    </div>
+                </div>
+
+                <!-- Vegetation Results Display -->
+                <div class="card" id="veg-results-panel" style="display: none;">
+                    <div class="card-header">
+                        <h3>Vegetation Condition & Canopy Health</h3>
+                    </div>
+                    <div class="chart-container">
+                        <img id="veg-chart-img" class="chart-image" alt="Vegetation Health Chart" style="display: none;">
+                        <p id="veg-chart-loading">Processing vegetation metrics...</p>
+                    </div>
+                </div>
+            </section>
+
+
+            <!-- ===============================================================
+                 DASHBOARD 4: CHANGE DETECTION (Bi-Temporal Comparison)
+                 =============================================================== -->
+            <section class="dashboard-workspace" id="ws-change" style="display: none;">
+                <div class="card control-card">
+                    <div class="module-header">
+                        <div>
+                            <h2>⚖️ Change Detection Workspace</h2>
+                            <p class="section-desc">Compare two satellite observation windows to identify canopy loss, regrowth, and stable forest cover.</p>
+                        </div>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="change-lat">Latitude (°N/S):</label>
+                            <input type="number" id="change-lat" class="form-control" step="0.0001" value="15.0000">
+                        </div>
+                        <div class="form-group">
+                            <label for="change-lon">Longitude (°E/W):</label>
+                            <input type="number" id="change-lon" class="form-control" step="0.0001" value="75.0000">
+                        </div>
+
+                        <!-- Baseline Window -->
+                        <div class="form-group">
+                            <label for="change-base-start">Baseline Start (T1):</label>
+                            <input type="date" id="change-base-start" class="form-control" value="2022-01-01">
+                        </div>
+                        <div class="form-group">
+                            <label for="change-base-end">Baseline End (T1):</label>
+                            <input type="date" id="change-base-end" class="form-control" value="2022-05-31">
+                        </div>
+
+                        <!-- Recent Window -->
+                        <div class="form-group">
+                            <label for="change-rec-start">Recent Start (T2):</label>
+                            <input type="date" id="change-rec-start" class="form-control" value="2023-01-01">
+                        </div>
+                        <div class="form-group">
+                            <label for="change-rec-end">Recent End (T2):</label>
+                            <input type="date" id="change-rec-end" class="form-control" value="2023-05-31">
+                        </div>
+                    </div>
+
+                    <div class="button-container">
+                        <button id="run-change-button" class="primary-button">⚖️ Run Change Detection</button>
+                        <button id="stop-change-button" class="secondary-button" disabled>⏹ Stop Processing</button>
+                    </div>
+                </div>
+
+                <!-- Change Detection Findings Panel -->
+                <div class="card results-panel" id="change-results-panel" style="display: none;">
+                    <div class="results-header">
+                        <div>
+                            <h2>Change Detection Findings</h2>
+                            <div class="badge-row">
+                                <span id="change-id-badge" class="analysis-badge">ID: None</span>
+                                <span class="tag-badge">Multi-Temporal ΔNDVI</span>
+                            </div>
+                        </div>
+                        <div id="change-timestamp" class="timestamp"></div>
+                    </div>
+
+                    <!-- KPI Metric Cards -->
+                    <div class="kpi-grid">
+                        <div class="kpi-card" id="kpi-change-risk">
+                            <div class="kpi-title">Deforestation Alert</div>
+                            <div class="kpi-value" id="val-change-risk">--</div>
+                            <div class="kpi-sub" id="sub-change-risk">Canopy status</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-title">Potential Forest Loss</div>
+                            <div class="kpi-value text-danger" id="val-change-loss">-- ha</div>
+                            <div class="kpi-sub" id="sub-change-loss">--% of area</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-title">Stable Dense Forest</div>
+                            <div class="kpi-value text-success" id="val-change-dense">-- ha</div>
+                            <div class="kpi-sub" id="sub-change-dense">--% of area</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-title">Mean NDVI Shift (Δ)</div>
+                            <div class="kpi-value text-info" id="val-change-ndvi">--</div>
+                            <div class="kpi-sub" id="sub-change-ndvi">T2 - T1 Difference</div>
+                        </div>
+                    </div>
+
+                    <!-- Change Visualization Tabs -->
+                    <div class="tabs">
+                        <button class="tab-button active" data-tab="change-map">4-Panel Satellite Map</button>
+                        <button class="tab-button" data-tab="change-stats">Statistical Charts</button>
+                        <button class="tab-button" data-tab="change-report">Analysis Report</button>
+                        <button class="tab-button" data-tab="change-log">Live Log</button>
+                    </div>
+
+                    <div id="change-map-tab" class="tab-content active">
+                        <div class="chart-container">
+                            <img id="change-map-image" class="chart-image" alt="4-Panel Spatial Satellite Map" style="display: none;">
+                            <p id="no-change-map-msg">Computing spatial reflectance...</p>
+                        </div>
+                    </div>
+
+                    <div id="change-stats-tab" class="tab-content">
+                        <div class="chart-container">
+                            <img id="change-stats-image" class="chart-image" alt="Forest Change Charts" style="display: none;">
+                            <p id="no-change-stats-msg">Charts rendering...</p>
+                        </div>
+                    </div>
+
+                    <div id="change-report-tab" class="tab-content">
+                        <div class="report-toolbar">
+                            <button id="btn-export-pdf-change" class="btn-export-pdf">📄 Download PDF Report</button>
+                            <button id="btn-export-csv-change" class="btn-export-csv">📊 Download CSV Metrics</button>
+                            <button id="btn-export-txt-change" class="btn-export-txt">📥 Download TXT</button>
+                        </div>
+                        <pre id="change-report-content" class="report-content"></pre>
+                    </div>
+
+                    <div id="change-log-tab" class="tab-content">
+                        <div id="change-log-container" class="log-container"></div>
+                    </div>
+                </div>
+            </section>
+
+
+            <!-- ===============================================================
+                 DASHBOARD 5: MULTI-YEAR HISTORICAL TRENDS
+                 =============================================================== -->
+            <section class="dashboard-workspace" id="ws-historical" style="display: none;">
+                <div class="card control-card">
+                    <div class="module-header">
+                        <div>
+                            <h2>📈 Multi-Year Historical Analysis</h2>
+                            <p class="section-desc">Study long-term vegetation trajectories across consecutive years (2018–2024) to track chronic degradation or recovery.</p>
+                        </div>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="hist-start-year">Start Year:</label>
+                            <select id="hist-start-year" class="form-control">
+                                <option value="2018">2018</option>
+                                <option value="2019" selected>2019</option>
+                                <option value="2020">2020</option>
+                                <option value="2021">2021</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="hist-end-year">End Year:</label>
+                            <select id="hist-end-year" class="form-control">
+                                <option value="2022">2022</option>
+                                <option value="2023">2023</option>
+                                <option value="2024" selected>2024</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="hist-lat">Latitude (°N/S):</label>
+                            <input type="number" id="hist-lat" class="form-control" step="0.0001" value="15.0000">
+                        </div>
+                        <div class="form-group">
+                            <label for="hist-lon">Longitude (°E/W):</label>
+                            <input type="number" id="hist-lon" class="form-control" step="0.0001" value="75.0000">
+                        </div>
+                    </div>
+
+                    <div class="button-container">
+                        <button id="run-hist-button" class="primary-button">📈 Run Historical Time-Series</button>
+                    </div>
+                </div>
+
+                <div class="card results-panel" id="hist-results-panel" style="display: none;">
+                    <h2>Historical Trajectory Findings</h2>
+                    <div class="chart-container">
+                        <img id="hist-chart-image" class="chart-image" alt="Historical Trend Curves" style="display: none;">
+                        <p id="no-hist-chart-message">Historical time-series processing...</p>
+                    </div>
+                    <div class="table-responsive" style="margin-top: 20px;">
+                        <table class="history-table" id="hist-table">
+                            <thead>
+                                <tr>
+                                    <th>Year</th>
+                                    <th>Period</th>
+                                    <th>Mean NDVI</th>
+                                    <th>Median</th>
+                                    <th>Dense Forest (%)</th>
+                                    <th>YoY Change</th>
+                                    <th>Confidence</th>
+                                </tr>
+                            </thead>
+                            <tbody id="hist-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+
+            <!-- ===============================================================
+                 DASHBOARD 6: REPORTS & HISTORY
+                 =============================================================== -->
+            <section class="dashboard-workspace" id="ws-reports" style="display: none;">
+                <div class="card">
+                    <div class="module-header">
+                        <div>
+                            <h2>📁 Analysis History & Reports Repository</h2>
+                            <p class="section-desc">Search, filter, and download executive PDF reports and CSV metrics from completed runs.</p>
+                        </div>
+                        <button id="btn-refresh-history" class="btn-outline-green">🔄 Refresh Records</button>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="history-table" id="history-table">
+                            <thead>
+                                <tr>
+                                    <th>Analysis ID</th>
+                                    <th>Type</th>
+                                    <th>Coordinates</th>
+                                    <th>Execution Date</th>
+                                    <th>Canopy Loss</th>
+                                    <th>Risk Level</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-tbody">
+                                <tr><td colspan="8" style="text-align: center;">Loading records...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===============================================================
+                 DASHBOARD 7: SETTINGS & SCIENTIFIC CONFIGURATION
+                 =============================================================== -->
+            <section class="dashboard-workspace" id="ws-settings" style="display: none;">
+                <div class="card">
+                    <div class="module-header">
+                        <div>
+                            <h2>⚙️ Platform & Scientific Settings</h2>
+                            <p class="section-desc">View environmental sensing parameters, satellite collection configs, and notification channels.</p>
+                        </div>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="card" style="margin-bottom: 0;">
+                            <h3 style="font-size: 1.05rem; color: var(--deep-forest); margin-bottom: 12px;">🛰️ Remote Sensing Source</h3>
+                            <table class="history-table">
+                                <tr>
+                                    <td><strong>Satellite Constellation</strong></td>
+                                    <td>Copernicus Sentinel-2A / Sentinel-2B</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Collection ID</strong></td>
+                                    <td><code>COPERNICUS/S2_SR_HARMONIZED</code></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Processing Level</strong></td>
+                                    <td>Level-2A (Surface Reflectance / Bottom-of-Atmosphere)</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Spectral Bands</strong></td>
+                                    <td>Red (B04 - 665 nm), NIR (B08 - 842 nm), RGB (B04, B03, B02)</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>GEE Project</strong></td>
+                                    <td><code>boxwood-well-512915-r3</code></td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <div class="card" style="margin-bottom: 0;">
+                            <h3 style="font-size: 1.05rem; color: var(--deep-forest); margin-bottom: 12px;">🌿 Scientific NDVI & Classification Rules</h3>
+                            <table class="history-table">
+                                <tr>
+                                    <td><strong>Formula</strong></td>
+                                    <td><code>NDVI = (B08 - B04) / (B08 + B04)</code></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Dense Canopy</strong></td>
+                                    <td><span class="badge badge-green">NDVI &gt; 0.60</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Moderate Canopy</strong></td>
+                                    <td><span class="badge badge-yellow">0.40 &le; NDVI &le; 0.60</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Sparse Vegetation</strong></td>
+                                    <td><span class="badge badge-orange">0.20 &le; NDVI &lt; 0.40</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Non-Forest / Bare / Water</strong></td>
+                                    <td><span class="badge badge-gray">NDVI &lt; 0.20</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Deforestation Alert Threshold</strong></td>
+                                    <td><span class="badge badge-danger">&Delta;NDVI &lt; -0.15</span></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="card" style="margin-top: 20px; margin-bottom: 0;">
+                        <h3 style="font-size: 1.05rem; color: var(--deep-forest); margin-bottom: 12px;">🛡️ Atmospheric Quality Masking (SCL)</h3>
+                        <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 12px;">
+                            ForestWatch AI enforces pixel-level Scene Classification Layer (SCL) masking to prevent false deforestation alarms caused by atmospheric artifacts:
+                        </p>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <span class="badge badge-gray">Class 3: Cloud Shadows (Masked)</span>
+                            <span class="badge badge-gray">Class 8: Clouds Medium Probability (Masked)</span>
+                            <span class="badge badge-gray">Class 9: Clouds High Probability (Masked)</span>
+                            <span class="badge badge-gray">Class 10: Cirrus High Altitude (Masked)</span>
+                            <span class="badge badge-gray">Class 11: Snow / Ice (Masked)</span>
+                            <span class="badge badge-green">Classes 4, 5, 6, 7: Valid Land Surface (Retained)</span>
+                        </div>
+                    </div>
+
+                    <div class="card" style="margin-top: 20px; margin-bottom: 0;">
+                        <h3 style="font-size: 1.05rem; color: var(--deep-forest); margin-bottom: 12px;">📁 Storage, Caching & Environment</h3>
+                        <table class="history-table">
+                            <tr>
+                                <td><strong>Output Directory</strong></td>
+                                <td><code>static/sentinel_output/&lt;analysis_id&gt;/</code> (Isolated directory per run)</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Historical Cache</strong></td>
+                                <td><code>static/cache/historical/</code> (MD5 hashed annual composites)</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Configuration File</strong></td>
+                                <td><code>.env</code> (Loaded via <code>python-dotenv</code>; not tracked in git)</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Save Location Modal Dialog -->
+        <div id="save-location-modal" class="modal-backdrop" style="display: none;">
+            <div class="modal-dialog">
+                <div class="modal-header">
+                    <h3>Save Monitoring Location</h3>
+                    <button id="modal-close-btn" class="modal-close-btn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="save-loc-name">Location Name:</label>
+                        <input type="text" id="save-loc-name" class="form-control" placeholder="e.g. Bandipur Sector A">
+                    </div>
+                    <div class="form-group">
+                        <label for="save-loc-region">Region / State:</label>
+                        <input type="text" id="save-loc-region" class="form-control" placeholder="e.g. Karnataka, India">
+                    </div>
+                    <div class="form-group">
+                        <label for="save-loc-notes">Monitoring Notes:</label>
+                        <textarea id="save-loc-notes" class="form-control" rows="3" placeholder="e.g. Conservation zone priority"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="modal-cancel-btn" class="btn-outline-green">Cancel</button>
+                    <button id="modal-confirm-btn" class="btn-solid-green">Save to Library</button>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <div class="footer-container">
+                <p><strong>ForestWatch AI</strong> — Advanced Geospatial Intelligence for Forest Monitoring & Conservation</p>
+                <p class="footer-disclaimer">Powered by Copernicus Sentinel-2 Level-2A Surface Reflectance & Google Earth Engine. Data provided for environmental monitoring purposes.</p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Application Script -->
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "year": 2020,
+  "period": "2020-01-01 to 2020-05-31",
+  "status": "success",
+  "observation_count": 29,
+  "mean_ndvi": 0.2633,
+  "median_ndvi": 0.2588,
+  "min_ndvi": -0.3213,
+  "max_ndvi": 0.8144,
+  "std_ndvi": 0.2518,
+  "dense_pct": 19.43,
+  "light_pct": 40.43,
+  "non_forest_pct": 40.13,
+  "valid_pixels": 11990,
+  "total_pixels": 11990,
+  "quality_flag": "High Confidence"
+}

@@ -1,0 +1,68 @@
+[
+  {
+    "id": "loc_western_ghats",
+    "name": "Western Ghats Moist Deciduous Forest",
+    "region": "Karnataka, India",
+    "latitude": 15.0000,
+    "longitude": 75.0000,
+    "radius_meters": 2000,
+    "description": "Global biodiversity hotspot containing diverse tropical evergreen and moist deciduous forest ecosystems.",
+    "created_at": "2026-01-15 10:00:00",
+    "notes": "Monitor selective logging and canopy density shifts."
+  },
+  {
+    "id": "loc_corbett",
+    "name": "Jim Corbett National Park & Tiger Reserve",
+    "region": "Uttarakhand, India",
+    "latitude": 29.5300,
+    "longitude": 78.7747,
+    "radius_meters": 2500,
+    "description": "Sub-Himalayan belt dense Sal, Haldu, and Peepal tree forest cover.",
+    "created_at": "2026-01-20 14:30:00",
+    "notes": "Protected wildlife corridor monitoring."
+  },
+  {
+    "id": "loc_kaziranga",
+    "name": "Kaziranga National Park",
+    "region": "Assam, India",
+    "latitude": 26.6638,
+    "longitude": 93.3540,
+    "radius_meters": 3000,
+    "description": "Floodplain tall elephant grass and tropical moist broadleaf forest along the Brahmaputra River.",
+    "created_at": "2026-02-01 09:15:00",
+    "notes": "Annual monsoon flooding and seasonal vegetation changes."
+  },
+  {
+    "id": "loc_sundarbans",
+    "name": "Sundarbans Mangrove Biosphere",
+    "region": "West Bengal, India",
+    "latitude": 21.9497,
+    "longitude": 89.1833,
+    "radius_meters": 2500,
+    "description": "World's largest contiguous tidal halophytic mangrove ecosystem.",
+    "created_at": "2026-02-10 11:20:00",
+    "notes": "Tidal variation, salinity stress, and coastal mangrove canopy integrity."
+  },
+  {
+    "id": "loc_amazon",
+    "name": "Amazon Basin — Rondônia Deforestation Arc",
+    "region": "Rondônia, Brazil",
+    "latitude": -10.5000,
+    "longitude": -62.8000,
+    "radius_meters": 3500,
+    "description": "Tropical rainforest active deforestation frontier with historical fishbone road clearings.",
+    "created_at": "2026-02-15 16:45:00",
+    "notes": "High priority: cattle ranching and pasture expansion clear-cuts."
+  },
+  {
+    "id": "loc_black_forest",
+    "name": "Black Forest (Schwarzwald)",
+    "region": "Baden-Württemberg, Germany",
+    "latitude": 48.3000,
+    "longitude": 8.2000,
+    "radius_meters": 2000,
+    "description": "Temperate coniferous and broadleaf mountain forest in Southwestern Germany.",
+    "created_at": "2026-02-22 13:00:00",
+    "notes": "Bark beetle infestation tracking and summer drought canopy stress."
+  }
+]

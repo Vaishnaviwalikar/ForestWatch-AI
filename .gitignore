@@ -1,0 +1,19 @@
+# Environments and Secrets
+.env
+*.env
+credentials
+*.safe
+
+# Python Bytecode and Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.log
+
+# Output artifacts
+static/sentinel_output/analysis_*
+sentinel_output/
+
+# OS artifacts
+.DS_Store
+Thumbs.db

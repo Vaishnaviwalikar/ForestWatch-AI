@@ -1,0 +1,17 @@
+{
+  "year": 2023,
+  "period": "2023-01-01 to 2023-05-31",
+  "status": "success",
+  "observation_count": 26,
+  "mean_ndvi": 0.1873,
+  "median_ndvi": 0.1888,
+  "min_ndvi": -0.5621,
+  "max_ndvi": 0.7929,
+  "std_ndvi": 0.2467,
+  "dense_pct": 8.73,
+  "light_pct": 38.6,
+  "non_forest_pct": 52.67,
+  "valid_pixels": 11990,
+  "total_pixels": 11990,
+  "quality_flag": "High Confidence"
+}

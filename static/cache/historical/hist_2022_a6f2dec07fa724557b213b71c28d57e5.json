@@ -1,0 +1,17 @@
+{
+  "year": 2022,
+  "period": "2022-01-01 to 2022-05-31",
+  "status": "success",
+  "observation_count": 30,
+  "mean_ndvi": 0.6673,
+  "median_ndvi": 0.7081,
+  "min_ndvi": -0.3394,
+  "max_ndvi": 0.8487,
+  "std_ndvi": 0.1719,
+  "dense_pct": 94.5,
+  "light_pct": 2.13,
+  "non_forest_pct": 3.37,
+  "valid_pixels": 11772,
+  "total_pixels": 11772,
+  "quality_flag": "High Confidence"
+}

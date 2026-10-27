@@ -1,0 +1,3 @@
+# Copernicus Data Space Ecosystem / Sentinel Hub Token
+# Store your access token in a .env file or environment variable:
+# COPERNICUS_ACCESS_TOKEN=your_token_here

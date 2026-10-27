@@ -1,0 +1,17 @@
+{
+  "year": 2019,
+  "period": "2019-01-01 to 2019-05-31",
+  "status": "success",
+  "observation_count": 27,
+  "mean_ndvi": 0.2016,
+  "median_ndvi": 0.1754,
+  "min_ndvi": -0.2775,
+  "max_ndvi": 0.7485,
+  "std_ndvi": 0.1437,
+  "dense_pct": 4.76,
+  "light_pct": 37.71,
+  "non_forest_pct": 57.52,
+  "valid_pixels": 11990,
+  "total_pixels": 11990,
+  "quality_flag": "High Confidence"
+}
