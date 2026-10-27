@@ -1,0 +1,17 @@
+{
+  "year": 2024,
+  "period": "2024-01-01 to 2024-05-31",
+  "status": "success",
+  "observation_count": 46,
+  "mean_ndvi": 0.3148,
+  "median_ndvi": 0.3107,
+  "min_ndvi": -0.2552,
+  "max_ndvi": 0.6925,
+  "std_ndvi": 0.1186,
+  "dense_pct": 5.31,
+  "light_pct": 86.26,
+  "non_forest_pct": 8.44,
+  "valid_pixels": 12210,
+  "total_pixels": 12210,
+  "quality_flag": "High Confidence"
+}

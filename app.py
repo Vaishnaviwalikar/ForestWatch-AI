@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify, request, send_from_directory, send_file
+from flask import Flask, render_template, jsonify, request, send_from_directory, send_file, redirect, url_for
 import os
 import sys
 import json
@@ -28,6 +28,80 @@ os.makedirs(OUTPUT_ROOT, exist_ok=True)
 jobs_lock = threading.Lock()
 jobs = {}
 latest_analysis_id = None
+
+
+def load_existing_runs_from_disk():
+    """Preload completed analysis runs from disk so results persist across restarts"""
+    global latest_analysis_id
+    import glob
+    pattern = os.path.join(OUTPUT_ROOT, "*", "summary_*.json")
+    summary_files = sorted(glob.glob(pattern), key=os.path.getmtime)
+    for sf in summary_files:
+        try:
+            with open(sf, 'r') as f:
+                data = json.load(f)
+            aid = data.get("analysis_id")
+            if not aid:
+                continue
+            run_dir = os.path.join(OUTPUT_ROOT, aid)
+            report_path = os.path.join(run_dir, f"forest_analysis_{aid}.txt")
+            if not os.path.exists(report_path):
+                report_path = os.path.join(OUTPUT_ROOT, "forest_analysis.txt")
+
+            chart_path = os.path.join(run_dir, f"forest_classification_{aid}.png")
+            if not os.path.exists(chart_path):
+                chart_path = os.path.join(OUTPUT_ROOT, "forest_classification.png")
+
+            map_path = os.path.join(run_dir, f"temporal_comparison_{aid}.png")
+            if not os.path.exists(map_path):
+                map_path = os.path.join(OUTPUT_ROOT, "temporal_comparison.png")
+
+            pdf_path = os.path.join(run_dir, f"forest_report_{aid}.pdf")
+            csv_path = os.path.join(run_dir, f"forest_data_{aid}.csv")
+
+            is_hist = aid.startswith("hist_") or data.get("type") == "historical"
+            job_type = "historical" if is_hist else "bitemporal"
+
+            lat = data.get("location", {}).get("latitude", 15.0)
+            lon = data.get("location", {}).get("longitude", 75.0)
+
+            job_record = {
+                "id": aid,
+                "type": job_type,
+                "status": "completed",
+                "params": {
+                    "latitude": lat,
+                    "longitude": lon,
+                    "baseline_start": data.get("baseline_meta", {}).get("query_start_date", "2022-01-01"),
+                    "baseline_end": data.get("baseline_meta", {}).get("query_end_date", "2022-05-31"),
+                    "recent_start": data.get("recent_meta", {}).get("query_start_date", "2023-01-01"),
+                    "recent_end": data.get("recent_meta", {}).get("query_end_date", "2023-05-31"),
+                    "radius_meters": 2000,
+                    "scale": 20
+                },
+                "messages": ["Analysis loaded from persistent storage."],
+                "cancel_event": threading.Event(),
+                "started_at": data.get("timestamp", datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+                "completed_at": data.get("timestamp", datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+                "report_path": report_path if os.path.exists(report_path) else None,
+                "chart_path": chart_path if os.path.exists(chart_path) else None,
+                "map_path": map_path if os.path.exists(map_path) else None,
+                "pdf_path": pdf_path if os.path.exists(pdf_path) else None,
+                "csv_path": csv_path if os.path.exists(csv_path) else None,
+                "rel_report_path": f"sentinel_output/{aid}/forest_analysis_{aid}.txt" if os.path.exists(report_path) else "sentinel_output/forest_analysis.txt",
+                "rel_chart_path": f"sentinel_output/{aid}/forest_classification_{aid}.png" if os.path.exists(chart_path) else "sentinel_output/forest_classification.png",
+                "rel_map_path": f"sentinel_output/{aid}/temporal_comparison_{aid}.png" if os.path.exists(map_path) else "sentinel_output/temporal_comparison.png",
+                "summary": data,
+                "email_sent": False,
+                "email_status": "Completed"
+            }
+            with jobs_lock:
+                jobs[aid] = job_record
+                latest_analysis_id = aid
+        except Exception as e:
+            logger.warning(f"Error loading summary {sf}: {e}")
+
+load_existing_runs_from_disk()
 
 
 def get_job(analysis_id=None):
@@ -135,9 +209,45 @@ def execute_historical_worker(analysis_id, params, cancel_event):
 
 
 @app.route('/')
-def index():
-    """Render the ForestWatch AI dashboard"""
+def feature_selection():
+    """Render the ForestWatch AI Feature Selection Hub (RoadSafe AI inspired)"""
+    return render_template('feature_selection.html')
+
+
+@app.route('/dashboard')
+def dashboard():
+    """Render the internal ForestWatch AI monitoring workspaces"""
     return render_template('index.html')
+
+
+@app.route('/explorer')
+def view_explorer():
+    return redirect(url_for('dashboard', view='explorer'))
+
+
+@app.route('/vegetation')
+def view_vegetation():
+    return redirect(url_for('dashboard', view='vegetation'))
+
+
+@app.route('/change')
+def view_change():
+    return redirect(url_for('dashboard', view='change'))
+
+
+@app.route('/historical')
+def view_historical():
+    return redirect(url_for('dashboard', view='historical'))
+
+
+@app.route('/reports')
+def view_reports():
+    return redirect(url_for('dashboard', view='reports'))
+
+
+@app.route('/overview')
+def view_overview():
+    return redirect(url_for('dashboard', view='overview'))
 
 
 @app.route('/run-analysis', methods=['POST'])

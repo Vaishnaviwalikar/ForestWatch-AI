@@ -19,11 +19,14 @@
     <!-- Top Navigation Bar -->
     <nav class="navbar">
         <div class="nav-container">
-            <div class="nav-brand" id="brand-home-btn" style="cursor: pointer;">
-                <div class="brand-logo">🌲</div>
-                <div class="brand-text">
-                    <span class="brand-title">ForestWatch <span class="accent-text">AI</span></span>
-                    <span class="brand-subtitle">Environmental Geospatial Intelligence</span>
+            <div class="nav-brand-wrapper">
+                <a href="/" class="btn-hub-return" title="Return to Feature Selection Hub">⬵ Feature Selection</a>
+                <div class="nav-brand" id="brand-home-btn" style="cursor: pointer;">
+                    <div class="brand-logo">🌲</div>
+                    <div class="brand-text">
+                        <span class="brand-title">ForestWatch <span class="accent-text">AI</span></span>
+                        <span class="brand-subtitle">Environmental Geospatial Intelligence</span>
+                    </div>
                 </div>
             </div>
             
@@ -311,126 +314,448 @@
 
 
             <!-- ===============================================================
-                 DASHBOARD 4: CHANGE DETECTION (Bi-Temporal Comparison)
+                 DASHBOARD 4: CHANGE DETECTION (Production Forest Intelligence)
                  =============================================================== -->
             <section class="dashboard-workspace" id="ws-change" style="display: none;">
-                <div class="card control-card">
-                    <div class="module-header">
-                        <div>
-                            <h2>⚖️ Change Detection Workspace</h2>
-                            <p class="section-desc">Compare two satellite observation windows to identify canopy loss, regrowth, and stable forest cover.</p>
+                
+                <!-- 1. COMPACT CHANGE INTELLIGENCE HEADER -->
+                <div class="change-intel-header">
+                    <div class="change-header-left">
+                        <div class="change-header-badge">
+                            <span class="live-dot"></span>
+                            <span>Change Intelligence • Copernicus Sentinel-2 L2A</span>
+                        </div>
+                        <h2 class="change-header-title">Canopy Change & Deforestation Detection</h2>
+                        <div class="change-header-meta">
+                            <span>Target: <strong id="change-active-target">Western Ghats Moist Forest (15.0000° N, 75.0000° E)</strong></span>
+                            <span class="pill-divider">•</span>
+                            <span>Source: <strong id="change-sensor-source">Sentinel-2 MSI Level-2A (BOA)</strong></span>
+                            <span class="pill-divider">•</span>
+                            <span>Atmospheric: <strong id="change-quality-tag">SCL Quality Masked</strong></span>
+                            <span class="pill-divider">•</span>
+                            <span id="change-last-run-badge" class="badge badge-gray">Status: Ready</span>
                         </div>
                     </div>
 
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label for="change-lat">Latitude (°N/S):</label>
-                            <input type="number" id="change-lat" class="form-control" step="0.0001" value="15.0000">
-                        </div>
-                        <div class="form-group">
-                            <label for="change-lon">Longitude (°E/W):</label>
-                            <input type="number" id="change-lon" class="form-control" step="0.0001" value="75.0000">
-                        </div>
-
-                        <!-- Baseline Window -->
-                        <div class="form-group">
-                            <label for="change-base-start">Baseline Start (T1):</label>
-                            <input type="date" id="change-base-start" class="form-control" value="2022-01-01">
-                        </div>
-                        <div class="form-group">
-                            <label for="change-base-end">Baseline End (T1):</label>
-                            <input type="date" id="change-base-end" class="form-control" value="2022-05-31">
-                        </div>
-
-                        <!-- Recent Window -->
-                        <div class="form-group">
-                            <label for="change-rec-start">Recent Start (T2):</label>
-                            <input type="date" id="change-rec-start" class="form-control" value="2023-01-01">
-                        </div>
-                        <div class="form-group">
-                            <label for="change-rec-end">Recent End (T2):</label>
-                            <input type="date" id="change-rec-end" class="form-control" value="2023-05-31">
-                        </div>
-                    </div>
-
-                    <div class="button-container">
-                        <button id="run-change-button" class="primary-button">⚖️ Run Change Detection</button>
-                        <button id="stop-change-button" class="secondary-button" disabled>⏹ Stop Processing</button>
+                    <div class="change-header-actions">
+                        <button id="run-change-button" class="btn-run-analysis" title="Launch Sentinel-2 Bi-Temporal Analysis">
+                            <span class="btn-icon">⚖️</span>
+                            <span id="run-change-btn-text">Run Change Detection</span>
+                        </button>
+                        <button id="stop-change-button" class="btn-stop-analysis" disabled title="Cancel processing job">
+                            <span class="btn-icon">⏹</span>
+                            <span>Stop</span>
+                        </button>
                     </div>
                 </div>
 
-                <!-- Change Detection Findings Panel -->
-                <div class="card results-panel" id="change-results-panel" style="display: none;">
+                <!-- 2. COMPACT ANALYSIS CONFIGURATION PANEL -->
+                <div class="card change-config-card">
+                    <div class="config-row-primary">
+                        <!-- Location & Coordinates -->
+                        <div class="config-group">
+                            <label class="config-label" for="change-lat">
+                                <span>Coordinates (°N, °E)</span>
+                                <button type="button" id="btn-sync-target-coords" class="btn-subtle-sync" title="Sync with active monitoring area">⟳ Sync Target</button>
+                            </label>
+                            <div class="coord-input-pair">
+                                <input type="number" id="change-lat" class="form-control-compact" step="0.0001" value="15.0000" placeholder="Latitude">
+                                <input type="number" id="change-lon" class="form-control-compact" step="0.0001" value="75.0000" placeholder="Longitude">
+                            </div>
+                        </div>
+
+                        <!-- Baseline Window (T1) -->
+                        <div class="config-group">
+                            <label class="config-label" for="change-base-start">Baseline Window (T1)</label>
+                            <div class="date-input-pair">
+                                <input type="date" id="change-base-start" class="form-control-compact" value="2022-01-01" title="T1 Start">
+                                <span class="date-sep">to</span>
+                                <input type="date" id="change-base-end" class="form-control-compact" value="2022-05-31" title="T1 End">
+                            </div>
+                        </div>
+
+                        <!-- Recent Window (T2) -->
+                        <div class="config-group">
+                            <label class="config-label" for="change-rec-start">Comparison Window (T2)</label>
+                            <div class="date-input-pair">
+                                <input type="date" id="change-rec-start" class="form-control-compact" value="2023-01-01" title="T2 Start">
+                                <span class="date-sep">to</span>
+                                <input type="date" id="change-rec-end" class="form-control-compact" value="2023-05-31" title="T2 End">
+                            </div>
+                        </div>
+
+                        <!-- Cloud Threshold & Monitoring Radius -->
+                        <div class="config-group">
+                            <label class="config-label" for="change-cloud-pct">
+                                <span>Cloud Limit: <strong id="change-cloud-val">25%</strong></span>
+                                <span>Radius: <strong id="change-radius-val">2,000m</strong></span>
+                            </label>
+                            <div class="slider-select-pair">
+                                <input type="range" id="change-cloud-pct" min="5" max="50" step="5" value="25" class="range-slider" title="Maximum allowed cloud cover">
+                                <select id="change-radius-select" class="form-control-compact" title="Area of interest radius">
+                                    <option value="1000">1,000m (~314 ha)</option>
+                                    <option value="1500">1,500m (~706 ha)</option>
+                                    <option value="2000" selected>2,000m (~1,256 ha)</option>
+                                    <option value="3000">3,000m (~2,827 ha)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Date Validation Alert Message (hidden by default) -->
+                    <div id="change-date-warning" class="date-validation-alert" style="display: none;">
+                        <span class="alert-icon">⚠️</span>
+                        <span id="change-date-warning-msg">Invalid date selection. Baseline must precede recent comparison window.</span>
+                    </div>
+
+                    <!-- Collapsible Advanced Sensing Settings -->
+                    <details class="advanced-settings-details">
+                        <summary class="advanced-settings-summary">
+                            <span>⚙️ Advanced Remote Sensing & Quality Masking Parameters</span>
+                            <span class="summary-hint">(Resolution, SCL Quality Classes, Index Thresholds)</span>
+                        </summary>
+                        <div class="advanced-settings-body">
+                            <div class="adv-param-item">
+                                <span class="adv-label">Processing Scale:</span>
+                                <strong>20m (Native Sentinel-2 B04/B08)</strong>
+                            </div>
+                            <div class="adv-param-item">
+                                <span class="adv-label">Atmospheric Filter:</span>
+                                <strong>Scene Classification Layer (SCL)</strong>
+                            </div>
+                            <div class="adv-param-item">
+                                <span class="adv-label">Masked Artifacts:</span>
+                                <strong>Clouds (8, 9), Shadows (3), Cirrus (10), Snow (11)</strong>
+                            </div>
+                            <div class="adv-param-item">
+                                <span class="adv-label">Deforestation Alert:</span>
+                                <strong>ΔNDVI &lt; -0.15 (Loss Threshold)</strong>
+                            </div>
+                            <div class="adv-param-item">
+                                <span class="adv-label">Canopy Thresholds:</span>
+                                <strong>Dense &gt; 0.60 | Light 0.40–0.60 | Bare &lt; 0.20</strong>
+                            </div>
+                        </div>
+                    </details>
+                </div>
+
+                <!-- 3. PRODUCTION INTELLIGENCE METRIC CARDS (4 Cards) -->
+                <div class="kpi-grid change-kpi-grid">
+                    <!-- Card 1: Potential Vegetation Loss -->
+                    <div class="kpi-card change-kpi-card" id="kpi-change-risk">
+                        <div class="kpi-card-top">
+                            <span class="kpi-title">Potential Vegetation Loss</span>
+                            <span class="badge" id="badge-change-risk">Evaluating...</span>
+                        </div>
+                        <div class="kpi-value text-danger" id="val-change-loss">-- ha</div>
+                        <div class="kpi-sub" id="sub-change-loss">--% of monitored area</div>
+                        <div class="kpi-footer-note">Canopy disturbance (ΔNDVI &lt; -0.15)</div>
+                    </div>
+
+                    <!-- Card 2: Mean NDVI Shift -->
+                    <div class="kpi-card change-kpi-card">
+                        <div class="kpi-card-top">
+                            <span class="kpi-title">Mean NDVI Shift (Δ)</span>
+                            <span class="tag-pill" id="val-change-risk">Net Trend</span>
+                        </div>
+                        <div class="kpi-value text-info" id="val-change-ndvi">--</div>
+                        <div class="kpi-sub" id="sub-change-ndvi">Recent (T2) vs Baseline (T1)</div>
+                        <div class="kpi-footer-note">Area-wide photosynthetic leaf vigor shift</div>
+                    </div>
+
+                    <!-- Card 3: Stable Forest Canopy -->
+                    <div class="kpi-card change-kpi-card">
+                        <div class="kpi-card-top">
+                            <span class="kpi-title">Stable Forest Canopy</span>
+                            <span class="badge badge-green">Retained</span>
+                        </div>
+                        <div class="kpi-value text-success" id="val-change-dense">-- ha</div>
+                        <div class="kpi-sub" id="sub-change-dense">--% dense forest cover</div>
+                        <div class="kpi-footer-note" id="sub-change-light">Stable Light: -- ha</div>
+                    </div>
+
+                    <!-- Card 4: Atmospheric Data Confidence -->
+                    <div class="kpi-card change-kpi-card">
+                        <div class="kpi-card-top">
+                            <span class="kpi-title">Data Quality & Confidence</span>
+                            <span class="badge badge-green" id="val-change-confidence">High</span>
+                        </div>
+                        <div class="kpi-value" id="val-change-pixels">-- px</div>
+                        <div class="kpi-sub" id="sub-change-confidence">100% SCL Validated Pixels</div>
+                        <div class="kpi-footer-note" id="sub-change-clouds">Scene Cloud Mask: Active</div>
+                    </div>
+                </div>
+
+                <!-- Step-by-Step Processing Pipeline Tracker (Shown while running) -->
+                <div id="change-pipeline-progress" class="pipeline-progress-card" style="display: none;">
+                    <div class="pipeline-header">
+                        <span class="spinner-dot"></span>
+                        <strong id="pipeline-status-text">Processing Sentinel-2 Bi-Temporal Observation...</strong>
+                        <span id="pipeline-elapsed-time" class="timestamp">00:00</span>
+                    </div>
+                    <div class="pipeline-steps">
+                        <div class="step-item" id="pstep-1">
+                            <span class="step-bullet">1</span>
+                            <span class="step-text">AOI Masking</span>
+                        </div>
+                        <div class="step-item" id="pstep-2">
+                            <span class="step-bullet">2</span>
+                            <span class="step-text">SCL Filter</span>
+                        </div>
+                        <div class="step-item" id="pstep-3">
+                            <span class="step-bullet">3</span>
+                            <span class="step-text">NDVI Calc</span>
+                        </div>
+                        <div class="step-item" id="pstep-4">
+                            <span class="step-bullet">4</span>
+                            <span class="step-text">ΔNDVI Shift</span>
+                        </div>
+                        <div class="step-item" id="pstep-5">
+                            <span class="step-bullet">5</span>
+                            <span class="step-text">Spatial Matrix</span>
+                        </div>
+                        <div class="step-item" id="pstep-6">
+                            <span class="step-bullet">6</span>
+                            <span class="step-text">PDF Report</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. LARGE INTERACTIVE CHANGE MAP (Focal Point of Dashboard) -->
+                <div class="card change-map-card">
+                    <div class="change-map-toolbar">
+                        <div class="map-toolbar-left">
+                            <span class="toolbar-title">🗺️ Spatial Canopy Map</span>
+                            <div class="layer-pill-group">
+                                <button type="button" id="btn-cmap-satellite" class="btn-layer-pill">🛰️ Sentinel-2 True-Color</button>
+                                <button type="button" id="btn-cmap-ndvi" class="btn-layer-pill">🌿 Sentinel-2 NDVI</button>
+                                <button type="button" id="btn-cmap-raster" class="btn-layer-pill active">⚖️ 4-Panel Analysis Map</button>
+                                <button type="button" id="btn-cmap-street" class="btn-layer-pill">🗺️ Street Context</button>
+                            </div>
+                        </div>
+
+                        <div class="map-toolbar-right">
+                            <div class="opacity-control-group">
+                                <label for="cmap-opacity-slider">Opacity: <strong id="cmap-opacity-val">100%</strong></label>
+                                <input type="range" id="cmap-opacity-slider" min="20" max="100" value="100" class="range-slider-sm">
+                            </div>
+                            <button type="button" id="btn-cmap-recenter" class="btn-tool-sm" title="Recenter to active monitoring area">🎯 Recenter</button>
+                            <button type="button" id="btn-cmap-fullscreen" class="btn-tool-sm" title="Toggle full-screen map">⛶ Fullscreen</button>
+                        </div>
+                    </div>
+
+                    <!-- Interactive Leaflet Canvas Container -->
+                    <div id="change-map-container" class="change-map-wrapper">
+                        <div id="change-leaflet-map" class="change-map-viewport"></div>
+
+                        <!-- Floating HUD: Observation Scene Metadata -->
+                        <div class="map-hud-meta" id="change-map-hud-meta">
+                            <div class="hud-item">
+                                <span class="hud-label">Baseline (T1):</span>
+                                <strong id="hud-base-date">2022 Observation</strong>
+                            </div>
+                            <span class="hud-divider">vs</span>
+                            <div class="hud-item">
+                                <span class="hud-label">Recent (T2):</span>
+                                <strong id="hud-recent-date">2023 Observation</strong>
+                            </div>
+                            <div class="hud-item">
+                                <span class="hud-label">Resolution:</span>
+                                <strong>20m BOA Surface</strong>
+                            </div>
+                        </div>
+
+                        <!-- Floating HUD: Click-to-Inspect Tooltip / Coordinate Inspector -->
+                        <div id="cmap-inspect-hud" class="map-inspect-hud" style="display: none;">
+                            <div class="inspect-hud-header">
+                                <strong>📍 Location Inspector</strong>
+                                <button id="btn-close-inspect-hud" class="btn-close-hud">&times;</button>
+                            </div>
+                            <div class="inspect-hud-body">
+                                <div>Coordinates: <strong id="inspect-coords">--</strong></div>
+                                <div>Distance to Center: <strong id="inspect-distance">--</strong></div>
+                                <div>Canopy Status: <span class="badge badge-green" id="inspect-status">Monitoring Zone</span></div>
+                                <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:4px;">
+                                    Click anywhere within the monitoring radius to query coordinates and canopy conditions.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Floating Map Legend -->
+                        <div class="map-floating-legend">
+                            <div class="legend-header">
+                                <span>Canopy Change Scale</span>
+                            </div>
+                            <div class="legend-grid">
+                                <div class="leg-item"><span class="leg-swatch deforested-swatch"></span> <strong>Potential Loss</strong> (ΔNDVI &lt; -0.15)</div>
+                                <div class="leg-item"><span class="leg-swatch stable-dense-swatch"></span> <strong>Dense Forest</strong> (NDVI &gt; 0.60)</div>
+                                <div class="leg-item"><span class="leg-swatch stable-light-swatch"></span> <strong>Light Forest</strong> (0.40–0.60)</div>
+                                <div class="leg-item"><span class="leg-swatch regrowth-swatch"></span> <strong>Canopy Regrowth</strong> (ΔNDVI &gt; +0.15)</div>
+                                <div class="leg-item"><span class="leg-swatch non-forest-swatch"></span> <strong>Non-Forest / Bare</strong> (NDVI &lt; 0.20)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. BEFORE-AND-AFTER SCENE COMPARISON & ANALYTICAL TABS -->
+                <div class="card results-panel" id="change-results-panel">
                     <div class="results-header">
                         <div>
-                            <h2>Change Detection Findings</h2>
                             <div class="badge-row">
-                                <span id="change-id-badge" class="analysis-badge">ID: None</span>
+                                <span id="change-id-badge" class="analysis-badge">ID: Loading...</span>
                                 <span class="tag-badge">Multi-Temporal ΔNDVI</span>
+                                <span class="tag-badge" id="change-target-pill">Target Zone</span>
                             </div>
+                            <h2 style="margin-top: 8px;">Analytical Findings & Scene Verification</h2>
                         </div>
                         <div id="change-timestamp" class="timestamp"></div>
                     </div>
 
-                    <!-- KPI Metric Cards -->
-                    <div class="kpi-grid">
-                        <div class="kpi-card" id="kpi-change-risk">
-                            <div class="kpi-title">Deforestation Alert</div>
-                            <div class="kpi-value" id="val-change-risk">--</div>
-                            <div class="kpi-sub" id="sub-change-risk">Canopy status</div>
+                    <!-- Before-and-After Scene Metadata Breakdown -->
+                    <div class="scene-comparison-cards">
+                        <div class="scene-card baseline-scene">
+                            <div class="scene-card-header">
+                                <span class="scene-tag">Baseline Reference (T1)</span>
+                                <span class="badge badge-green" id="meta-base-spacecraft">Sentinel-2A</span>
+                            </div>
+                            <div class="scene-meta-grid">
+                                <div>Acquisition Date: <strong id="meta-base-acq">--</strong></div>
+                                <div>Query Window: <strong id="meta-base-window">--</strong></div>
+                                <div>Cloud Cover: <strong id="meta-base-cloud">--%</strong></div>
+                                <div>Available Passes: <strong id="meta-base-passes">--</strong></div>
+                            </div>
                         </div>
-                        <div class="kpi-card">
-                            <div class="kpi-title">Potential Forest Loss</div>
-                            <div class="kpi-value text-danger" id="val-change-loss">-- ha</div>
-                            <div class="kpi-sub" id="sub-change-loss">--% of area</div>
-                        </div>
-                        <div class="kpi-card">
-                            <div class="kpi-title">Stable Dense Forest</div>
-                            <div class="kpi-value text-success" id="val-change-dense">-- ha</div>
-                            <div class="kpi-sub" id="sub-change-dense">--% of area</div>
-                        </div>
-                        <div class="kpi-card">
-                            <div class="kpi-title">Mean NDVI Shift (Δ)</div>
-                            <div class="kpi-value text-info" id="val-change-ndvi">--</div>
-                            <div class="kpi-sub" id="sub-change-ndvi">T2 - T1 Difference</div>
+
+                        <div class="scene-card recent-scene">
+                            <div class="scene-card-header">
+                                <span class="scene-tag">Recent Comparison (T2)</span>
+                                <span class="badge badge-green" id="meta-recent-spacecraft">Sentinel-2A</span>
+                            </div>
+                            <div class="scene-meta-grid">
+                                <div>Acquisition Date: <strong id="meta-recent-acq">--</strong></div>
+                                <div>Query Window: <strong id="meta-recent-window">--</strong></div>
+                                <div>Cloud Cover: <strong id="meta-recent-cloud">--%</strong></div>
+                                <div>Available Passes: <strong id="meta-recent-passes">--</strong></div>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Change Visualization Tabs -->
-                    <div class="tabs">
+                    <!-- Analytical Finding Tabs -->
+                    <div class="tabs" style="margin-top: 22px;">
                         <button class="tab-button active" data-tab="change-map">4-Panel Satellite Map</button>
                         <button class="tab-button" data-tab="change-stats">Statistical Charts</button>
-                        <button class="tab-button" data-tab="change-report">Analysis Report</button>
-                        <button class="tab-button" data-tab="change-log">Live Log</button>
+                        <button class="tab-button" data-tab="change-summary-tab">Classification Breakdown</button>
+                        <button class="tab-button" data-tab="change-report">Executive Report</button>
+                        <button class="tab-button" data-tab="change-log">Live Pipeline Log</button>
                     </div>
 
+                    <!-- Tab 1: 4-Panel Satellite Map Image -->
                     <div id="change-map-tab" class="tab-content active">
                         <div class="chart-container">
                             <img id="change-map-image" class="chart-image" alt="4-Panel Spatial Satellite Map" style="display: none;">
-                            <p id="no-change-map-msg">Computing spatial reflectance...</p>
+                            <div id="no-change-map-msg" class="map-placeholder-box">
+                                <span class="pulse-icon">🛰️</span>
+                                <p>Ready to compute spatial change reflectance map.</p>
+                            </div>
                         </div>
                     </div>
 
+                    <!-- Tab 2: Statistical Charts Image -->
                     <div id="change-stats-tab" class="tab-content">
                         <div class="chart-container">
                             <img id="change-stats-image" class="chart-image" alt="Forest Change Charts" style="display: none;">
-                            <p id="no-change-stats-msg">Charts rendering...</p>
+                            <div id="no-change-stats-msg" class="map-placeholder-box">
+                                <span class="pulse-icon">📊</span>
+                                <p>Statistical charts rendering...</p>
+                            </div>
                         </div>
                     </div>
 
+                    <!-- Tab 3: Classification Breakdown Table & Methodology -->
+                    <div id="change-summary-tab-content" class="tab-content" id="change-summary-tab">
+                        <div class="table-responsive">
+                            <table class="history-table" id="change-classification-table">
+                                <thead>
+                                    <tr>
+                                        <th>Canopy Classification</th>
+                                        <th>Scientific Threshold</th>
+                                        <th>Area (Hectares)</th>
+                                        <th>Area (km²)</th>
+                                        <th>Coverage (%)</th>
+                                        <th>Ecological Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><span class="leg-swatch deforested-swatch"></span> <strong>Potential Vegetation Loss</strong></td>
+                                        <td><code>ΔNDVI &lt; -0.15</code></td>
+                                        <td><strong id="tbl-deforest-ha">-- ha</strong></td>
+                                        <td id="tbl-deforest-km2">-- km²</td>
+                                        <td><span class="badge badge-danger" id="tbl-deforest-pct">--%</span></td>
+                                        <td>Potential canopy reduction / disturbance</td>
+                                    </tr>
+                                    <tr>
+                                        <td><span class="leg-swatch stable-dense-swatch"></span> <strong>Stable Dense Forest</strong></td>
+                                        <td><code>NDVI &gt; 0.60</code></td>
+                                        <td><strong id="tbl-dense-ha">-- ha</strong></td>
+                                        <td id="tbl-dense-km2">-- km²</td>
+                                        <td><span class="badge badge-green" id="tbl-dense-pct">--%</span></td>
+                                        <td>Persistent closed canopy</td>
+                                    </tr>
+                                    <tr>
+                                        <td><span class="leg-swatch stable-light-swatch"></span> <strong>Stable Moderate / Light Forest</strong></td>
+                                        <td><code>0.40 ≤ NDVI ≤ 0.60</code></td>
+                                        <td><strong id="tbl-light-ha">-- ha</strong></td>
+                                        <td id="tbl-light-km2">-- km²</td>
+                                        <td><span class="badge badge-yellow" id="tbl-light-pct">--%</span></td>
+                                        <td>Open woodland / shrub canopy</td>
+                                    </tr>
+                                    <tr>
+                                        <td><span class="leg-swatch regrowth-swatch"></span> <strong>Vegetation Regrowth / Recovery</strong></td>
+                                        <td><code>ΔNDVI &gt; +0.15</code></td>
+                                        <td><strong id="tbl-regrowth-ha">-- ha</strong></td>
+                                        <td id="tbl-regrowth-km2">-- km²</td>
+                                        <td><span class="badge badge-green" id="tbl-regrowth-pct">--%</span></td>
+                                        <td>Canopy expansion / biomass recovery</td>
+                                    </tr>
+                                    <tr>
+                                        <td><span class="leg-swatch non-forest-swatch"></span> <strong>Non-Forest / Water / Barren</strong></td>
+                                        <td><code>NDVI &lt; 0.20</code></td>
+                                        <td><strong id="tbl-nonforest-ha">-- ha</strong></td>
+                                        <td id="tbl-nonforest-km2">-- km²</td>
+                                        <td><span class="badge badge-gray" id="tbl-nonforest-pct">--%</span></td>
+                                        <td>Settlements, rock, soil, or water</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Scientific Disclaimer Notice -->
+                        <div class="scientific-disclaimer-box" style="margin-top: 20px;">
+                            <div class="disclaimer-title">🛡️ Scientific Methodology & Interpretive Guidelines</div>
+                            <p>
+                                <strong>Important Notice on Vegetation Index Variance:</strong> Detected reductions in normalized difference vegetation index (ΔNDVI &lt; -0.15) represent <em>potential canopy disturbance, selective logging, or severe defoliation</em>. Because phenological seasonality, soil moisture, and cloud shadows can induce radiometric variations, independent ground-truthing, multi-temporal SAR confirmation, or high-resolution optical inspection is recommended before declaring legally confirmed deforestation.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Tab 4: Executive Report & Export Toolbar -->
                     <div id="change-report-tab" class="tab-content">
                         <div class="report-toolbar">
-                            <button id="btn-export-pdf-change" class="btn-export-pdf">📄 Download PDF Report</button>
-                            <button id="btn-export-csv-change" class="btn-export-csv">📊 Download CSV Metrics</button>
-                            <button id="btn-export-txt-change" class="btn-export-txt">📥 Download TXT</button>
+                            <button id="btn-export-pdf-change" class="btn-export-pdf" title="Download executive PDF report">📄 Download PDF Report</button>
+                            <button id="btn-export-csv-change" class="btn-export-csv" title="Download machine-readable CSV metrics">📊 Download CSV Metrics</button>
+                            <button id="btn-export-txt-change" class="btn-export-txt" title="Download text report">📥 Download TXT</button>
+                            <button id="btn-carry-to-historical" class="btn-solid-green" style="margin-left:auto;" title="Launch Multi-Year Analysis for these coordinates">📈 View Historical Trends →</button>
                         </div>
                         <pre id="change-report-content" class="report-content"></pre>
                     </div>
 
+                    <!-- Tab 5: Live Pipeline Log -->
                     <div id="change-log-tab" class="tab-content">
                         <div id="change-log-container" class="log-container"></div>
                     </div>
                 </div>
+
             </section>
 
 

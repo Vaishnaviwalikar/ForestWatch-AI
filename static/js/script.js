@@ -49,6 +49,15 @@ document.addEventListener("DOMContentLoaded", function () {
             if (overviewMap) setTimeout(() => overviewMap.invalidateSize(), 250);
             loadOverviewMetrics();
         }
+        if (targetId === "change") {
+            initChangeMap();
+            if (changeMap) {
+                setTimeout(() => {
+                    changeMap.invalidateSize();
+                    updateChangeMapLayers(state.lat, state.lon);
+                }, 250);
+            }
+        }
         if (targetId === "reports") {
             loadReportsHistory();
         }
@@ -401,8 +410,18 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // =========================================================================
-    // Change Detection Workspace
+    // Change Detection Workspace (Production GIS & Environmental Intelligence)
     // =========================================================================
+    let changeMap = null;
+    let changeMarker = null;
+    let changeCircle = null;
+    let changeBaseStreet = null;
+    let changeFallbackSat = null;
+    let changeLiveRgbLayer = null;
+    let changeLiveNdviLayer = null;
+    let changeRasterLayer = null;
+    let currentMapUrl = null;
+
     const runChangeBtn = document.getElementById("run-change-button");
     const stopChangeBtn = document.getElementById("stop-change-button");
     const changeResultsPanel = document.getElementById("change-results-panel");
@@ -412,8 +431,272 @@ document.addEventListener("DOMContentLoaded", function () {
     const noChangeStatsMsg = document.getElementById("no-change-stats-msg");
     const changeReportContent = document.getElementById("change-report-content");
     const changeLogContainer = document.getElementById("change-log-container");
+    const changeProgressCard = document.getElementById("change-pipeline-progress");
+    const changeDateWarning = document.getElementById("change-date-warning");
+    const changeDateWarningMsg = document.getElementById("change-date-warning-msg");
 
+    // Initialize Interactive Leaflet Change Map
+    function initChangeMap() {
+        const container = document.getElementById("change-leaflet-map");
+        if (!container || changeMap) return;
+
+        changeBaseStreet = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap contributors'
+        });
+
+        changeFallbackSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 18,
+            attribution: 'Esri World Imagery'
+        });
+
+        changeMap = L.map('change-leaflet-map', {
+            center: [state.lat, state.lon],
+            zoom: 12,
+            layers: [changeBaseStreet]
+        });
+
+        changeMarker = L.marker([state.lat, state.lon], { draggable: true }).addTo(changeMap);
+        changeCircle = L.circle([state.lat, state.lon], {
+            color: '#D9534F',
+            fillColor: '#FF6B6B',
+            fillOpacity: 0.20,
+            radius: state.radius
+        }).addTo(changeMap);
+
+        // Marker drag & map click events
+        function onChangeCoordChanged(lat, lon) {
+            state.lat = parseFloat(lat.toFixed(4));
+            state.lon = parseFloat(lon.toFixed(4));
+            changeMarker.setLatLng([state.lat, state.lon]);
+            changeCircle.setLatLng([state.lat, state.lon]);
+
+            document.getElementById("change-lat").value = state.lat.toFixed(4);
+            document.getElementById("change-lon").value = state.lon.toFixed(4);
+            document.getElementById("change-active-target").textContent = `${state.name} (${state.lat.toFixed(4)}° N, ${state.lon.toFixed(4)}° E)`;
+            updateActiveLocationDisplay();
+            updateChangeMapLayers(state.lat, state.lon);
+        }
+
+        changeMarker.on('dragend', function (e) {
+            const p = e.target.getLatLng();
+            onChangeCoordChanged(p.lat, p.lng);
+        });
+
+        changeMap.on('click', function (e) {
+            const p = e.latlng;
+            onChangeCoordChanged(p.lat, p.lng);
+
+            // Show inspector HUD
+            const inspectHud = document.getElementById("cmap-inspect-hud");
+            if (inspectHud) {
+                const distKm = (changeMap.distance([state.lat, state.lon], [p.lat, p.lng]) / 1000).toFixed(2);
+                document.getElementById("inspect-coords").textContent = `${p.lat.toFixed(4)}° N, ${p.lng.toFixed(4)}° E`;
+                document.getElementById("inspect-distance").textContent = `${distKm} km from center`;
+                const inAoi = (distKm * 1000) <= state.radius;
+                const statusEl = document.getElementById("inspect-status");
+                statusEl.textContent = inAoi ? "Inside Monitored Radius" : "Outside Target AOI";
+                statusEl.className = inAoi ? "badge badge-green" : "badge badge-gray";
+                inspectHud.style.display = "block";
+            }
+        });
+
+        // Layer selection buttons
+        const btnSat = document.getElementById("btn-cmap-satellite");
+        const btnNdvi = document.getElementById("btn-cmap-ndvi");
+        const btnRaster = document.getElementById("btn-cmap-raster");
+        const btnStreet = document.getElementById("btn-cmap-street");
+        const allLayerBtns = [btnSat, btnNdvi, btnRaster, btnStreet];
+
+        function resetChangeLayers() {
+            allLayerBtns.forEach(b => { if (b) b.classList.remove("active"); });
+            if (changeMap.hasLayer(changeBaseStreet)) changeMap.removeLayer(changeBaseStreet);
+            if (changeMap.hasLayer(changeFallbackSat)) changeMap.removeLayer(changeFallbackSat);
+            if (changeLiveRgbLayer && changeMap.hasLayer(changeLiveRgbLayer)) changeMap.removeLayer(changeLiveRgbLayer);
+            if (changeLiveNdviLayer && changeMap.hasLayer(changeLiveNdviLayer)) changeMap.removeLayer(changeLiveNdviLayer);
+        }
+
+        if (btnStreet) {
+            btnStreet.addEventListener("click", () => {
+                resetChangeLayers();
+                btnStreet.classList.add("active");
+                changeMap.addLayer(changeBaseStreet);
+            });
+        }
+
+        if (btnSat) {
+            btnSat.addEventListener("click", () => {
+                resetChangeLayers();
+                btnSat.classList.add("active");
+                if (changeLiveRgbLayer) {
+                    changeMap.addLayer(changeLiveRgbLayer);
+                } else {
+                    changeMap.addLayer(changeFallbackSat);
+                }
+            });
+        }
+
+        if (btnNdvi) {
+            btnNdvi.addEventListener("click", () => {
+                resetChangeLayers();
+                btnNdvi.classList.add("active");
+                if (changeLiveNdviLayer) {
+                    changeMap.addLayer(changeLiveNdviLayer);
+                } else {
+                    changeMap.addLayer(changeFallbackSat);
+                }
+            });
+        }
+
+        if (btnRaster) {
+            btnRaster.addEventListener("click", () => {
+                resetChangeLayers();
+                btnRaster.classList.add("active");
+                changeMap.addLayer(changeFallbackSat);
+                // Also activate the 4-panel image tab below
+                const mapTabBtn = document.querySelector("#change-results-panel .tab-button[data-tab='change-map']");
+                if (mapTabBtn) mapTabBtn.click();
+            });
+        }
+
+        // Opacity Slider
+        const opacitySlider = document.getElementById("cmap-opacity-slider");
+        const opacityVal = document.getElementById("cmap-opacity-val");
+        if (opacitySlider) {
+            opacitySlider.addEventListener("input", function () {
+                const val = parseInt(this.value);
+                if (opacityVal) opacityVal.textContent = `${val}%`;
+                const op = val / 100.0;
+                if (changeLiveRgbLayer) changeLiveRgbLayer.setOpacity(op);
+                if (changeLiveNdviLayer) changeLiveNdviLayer.setOpacity(op);
+                if (changeFallbackSat) changeFallbackSat.setOpacity(op);
+            });
+        }
+
+        // Recenter Button
+        const recenterBtn = document.getElementById("btn-cmap-recenter");
+        if (recenterBtn) {
+            recenterBtn.addEventListener("click", () => {
+                changeMap.setView([state.lat, state.lon], 12);
+            });
+        }
+
+        // Fullscreen Toggle
+        const fsBtn = document.getElementById("btn-cmap-fullscreen");
+        const mapCard = document.querySelector(".change-map-card");
+        if (fsBtn && mapCard) {
+            fsBtn.addEventListener("click", () => {
+                mapCard.classList.toggle("fullscreen-mode");
+                setTimeout(() => changeMap.invalidateSize(), 200);
+            });
+        }
+
+        // Close Inspector HUD
+        const closeHudBtn = document.getElementById("btn-close-inspect-hud");
+        if (closeHudBtn) {
+            closeHudBtn.addEventListener("click", () => {
+                document.getElementById("cmap-inspect-hud").style.display = "none";
+            });
+        }
+    }
+
+    function updateChangeMapLayers(lat, lon) {
+        fetch(`/api/satellite-tiles?lat=${lat}&lon=${lon}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.rgb_tile_url && changeMap) {
+                if (changeLiveRgbLayer && changeMap.hasLayer(changeLiveRgbLayer)) changeMap.removeLayer(changeLiveRgbLayer);
+                changeLiveRgbLayer = L.tileLayer(data.rgb_tile_url, { maxZoom: 18, attribution: 'Copernicus Sentinel-2' });
+
+                if (document.getElementById("btn-cmap-satellite") && document.getElementById("btn-cmap-satellite").classList.contains("active")) {
+                    if (changeMap.hasLayer(changeFallbackSat)) changeMap.removeLayer(changeFallbackSat);
+                    changeMap.addLayer(changeLiveRgbLayer);
+                }
+            }
+
+            if (data.ndvi_tile_url && changeMap) {
+                if (changeLiveNdviLayer && changeMap.hasLayer(changeLiveNdviLayer)) changeMap.removeLayer(changeLiveNdviLayer);
+                changeLiveNdviLayer = L.tileLayer(data.ndvi_tile_url, { maxZoom: 18, attribution: 'Sentinel-2 NDVI' });
+
+                if (document.getElementById("btn-cmap-ndvi") && document.getElementById("btn-cmap-ndvi").classList.contains("active")) {
+                    changeMap.addLayer(changeLiveNdviLayer);
+                }
+            }
+        })
+        .catch(err => console.error("Change map tile error:", err));
+    }
+
+    // Input handlers & Sync buttons
+    const btnSyncCoords = document.getElementById("btn-sync-target-coords");
+    if (btnSyncCoords) {
+        btnSyncCoords.addEventListener("click", () => {
+            document.getElementById("change-lat").value = state.lat.toFixed(4);
+            document.getElementById("change-lon").value = state.lon.toFixed(4);
+            if (changeMap) {
+                changeMap.setView([state.lat, state.lon], 12);
+                changeMarker.setLatLng([state.lat, state.lon]);
+                changeCircle.setLatLng([state.lat, state.lon]);
+                updateChangeMapLayers(state.lat, state.lon);
+            }
+        });
+    }
+
+    const cloudSlider = document.getElementById("change-cloud-pct");
+    const cloudVal = document.getElementById("change-cloud-val");
+    if (cloudSlider && cloudVal) {
+        cloudSlider.addEventListener("input", function () {
+            cloudVal.textContent = `${this.value}%`;
+        });
+    }
+
+    const radiusSelect = document.getElementById("change-radius-select");
+    const radiusVal = document.getElementById("change-radius-val");
+    if (radiusSelect) {
+        radiusSelect.addEventListener("change", function () {
+            const rad = parseInt(this.value);
+            state.radius = rad;
+            if (radiusVal) radiusVal.textContent = `${rad.toLocaleString()}m`;
+            if (changeCircle) changeCircle.setRadius(rad);
+            updateActiveLocationDisplay();
+        });
+    }
+
+    // Date Range Validation Check
+    function validateChangeDates() {
+        const bStart = document.getElementById("change-base-start").value;
+        const bEnd = document.getElementById("change-base-end").value;
+        const rStart = document.getElementById("change-rec-start").value;
+        const rEnd = document.getElementById("change-rec-end").value;
+
+        if (bStart && bEnd && bStart >= bEnd) {
+            changeDateWarningMsg.textContent = "Baseline Start Date must precede Baseline End Date.";
+            changeDateWarning.style.display = "flex";
+            return false;
+        }
+        if (rStart && rEnd && rStart >= rEnd) {
+            changeDateWarningMsg.textContent = "Comparison Start Date must precede Comparison End Date.";
+            changeDateWarning.style.display = "flex";
+            return false;
+        }
+        if (bStart && rStart && bStart === rStart && bEnd === rEnd) {
+            changeDateWarningMsg.textContent = "Baseline and Recent windows are identical. Select distinct observation periods for change detection.";
+            changeDateWarning.style.display = "flex";
+            return false;
+        }
+
+        changeDateWarning.style.display = "none";
+        return true;
+    }
+
+    ["change-base-start", "change-base-end", "change-rec-start", "change-rec-end"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener("change", validateChangeDates);
+    });
+
+    // Run Analysis Button
     runChangeBtn.addEventListener("click", () => {
+        if (!validateChangeDates()) return;
+
         const payload = {
             latitude: parseFloat(document.getElementById("change-lat").value),
             longitude: parseFloat(document.getElementById("change-lon").value),
@@ -421,11 +704,15 @@ document.addEventListener("DOMContentLoaded", function () {
             baseline_end: document.getElementById("change-base-end").value,
             recent_start: document.getElementById("change-rec-start").value,
             recent_end: document.getElementById("change-rec-end").value,
-            radius_meters: state.radius
+            radius_meters: parseInt(document.getElementById("change-radius-select").value || state.radius),
+            max_cloud_pct: parseFloat(document.getElementById("change-cloud-pct").value || 25),
+            scale: 20
         };
 
         runChangeBtn.disabled = true;
         stopChangeBtn.disabled = false;
+        document.getElementById("run-change-btn-text").textContent = "Analyzing Satellite Vigor...";
+
         changeResultsPanel.style.display = "block";
         changeMapImg.style.display = "none";
         changeStatsImg.style.display = "none";
@@ -433,6 +720,13 @@ document.addEventListener("DOMContentLoaded", function () {
         noChangeStatsMsg.style.display = "block";
         changeReportContent.textContent = "Processing Sentinel-2 imagery with SCL cloud & shadow filtering...";
         changeLogContainer.innerHTML = "Submitting job request to Sentinel-2 processing pipeline...<br>";
+
+        // Show pipeline progress card
+        if (changeProgressCard) {
+            changeProgressCard.style.display = "block";
+            resetPipelineSteps();
+            setPipelineStep(1, "active");
+        }
 
         fetch("/run-analysis", {
             method: "POST",
@@ -444,11 +738,37 @@ document.addEventListener("DOMContentLoaded", function () {
             state.currentAnalysisId = data.analysis_id;
             document.getElementById("change-id-badge").textContent = `ID: ${data.analysis_id}`;
             document.getElementById("change-timestamp").textContent = `Started: ${new Date().toLocaleTimeString()}`;
+            document.getElementById("change-last-run-badge").textContent = "Processing...";
+            document.getElementById("change-last-run-badge").className = "badge badge-yellow";
 
             if (state.pollInterval) clearInterval(state.pollInterval);
             state.pollInterval = setInterval(pollChangeStatus, 1500);
         });
     });
+
+    function resetPipelineSteps() {
+        for (let i = 1; i <= 6; i++) {
+            const step = document.getElementById(`pstep-${i}`);
+            if (step) {
+                step.classList.remove("active", "completed");
+            }
+        }
+    }
+
+    function setPipelineStep(num, status) {
+        for (let i = 1; i < num; i++) {
+            const prev = document.getElementById(`pstep-${i}`);
+            if (prev) {
+                prev.classList.remove("active");
+                prev.classList.add("completed");
+            }
+        }
+        const curr = document.getElementById(`pstep-${num}`);
+        if (curr) {
+            curr.classList.remove("completed");
+            curr.classList.add(status);
+        }
+    }
 
     stopChangeBtn.addEventListener("click", () => {
         if (!state.currentAnalysisId) return;
@@ -462,8 +782,12 @@ document.addEventListener("DOMContentLoaded", function () {
         .then(d => {
             runChangeBtn.disabled = false;
             stopChangeBtn.disabled = true;
+            document.getElementById("run-change-btn-text").textContent = "Run Change Detection";
+            if (changeProgressCard) changeProgressCard.style.display = "none";
             if (state.pollInterval) clearInterval(state.pollInterval);
             changeLogContainer.innerHTML += `<br><span class="error">⏹ ${d.message}</span>`;
+            document.getElementById("change-last-run-badge").textContent = "Cancelled";
+            document.getElementById("change-last-run-badge").className = "badge badge-gray";
         });
     });
 
@@ -475,12 +799,23 @@ document.addEventListener("DOMContentLoaded", function () {
             if (data.messages && data.messages.length > 0) {
                 changeLogContainer.innerHTML = data.messages.join("<br>");
                 changeLogContainer.scrollTop = changeLogContainer.scrollHeight;
+
+                const lastMsg = data.messages[data.messages.length - 1];
+                document.getElementById("pipeline-status-text").textContent = lastMsg;
+
+                if (lastMsg.includes("Retrieving Sentinel-2")) setPipelineStep(2, "active");
+                else if (lastMsg.includes("Calculating NDVI")) setPipelineStep(3, "active");
+                else if (lastMsg.includes("multi-temporal change") || lastMsg.includes("ΔNDVI")) setPipelineStep(4, "active");
+                else if (lastMsg.includes("4-panel spatial")) setPipelineStep(5, "active");
+                else if (lastMsg.includes("PDF") || lastMsg.includes("CSV")) setPipelineStep(6, "active");
             }
 
             if (data.status === "completed") {
                 clearInterval(state.pollInterval);
                 runChangeBtn.disabled = false;
                 stopChangeBtn.disabled = true;
+                document.getElementById("run-change-btn-text").textContent = "Run Change Detection";
+                if (changeProgressCard) changeProgressCard.style.display = "none";
 
                 loadChangeResults(state.currentAnalysisId, data.summary);
                 loadOverviewMetrics();
@@ -489,15 +824,24 @@ document.addEventListener("DOMContentLoaded", function () {
                 clearInterval(state.pollInterval);
                 runChangeBtn.disabled = false;
                 stopChangeBtn.disabled = true;
+                document.getElementById("run-change-btn-text").textContent = "Run Change Detection";
+                if (changeProgressCard) changeProgressCard.style.display = "none";
             }
         });
     }
 
     function loadChangeResults(analysisId, summary) {
-        // Load report
+        if (!analysisId) return;
+        state.currentAnalysisId = analysisId;
+        changeResultsPanel.style.display = "block";
+        document.getElementById("change-id-badge").textContent = `ID: ${analysisId}`;
+
+        // Load text report
         fetch(`/report?id=${analysisId}`)
         .then(r => r.json())
-        .then(d => changeReportContent.textContent = d.content || "");
+        .then(d => {
+            if (d && d.content) changeReportContent.textContent = d.content;
+        });
 
         // Load visualizations
         fetch(`/chart?id=${analysisId}`)
@@ -505,6 +849,7 @@ document.addEventListener("DOMContentLoaded", function () {
         .then(d => {
             const bust = new Date().getTime();
             if (d.map_url) {
+                currentMapUrl = d.map_url;
                 changeMapImg.src = `${d.map_url}?t=${bust}`;
                 changeMapImg.onload = () => { changeMapImg.style.display = "block"; noChangeMapMsg.style.display = "none"; };
             }
@@ -514,15 +859,97 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         });
 
-        if (summary && summary.change_stats) {
+        // Populate KPIs, Metadata, and Classification Table
+        if (summary) {
             const cs = summary.change_stats;
-            document.getElementById("val-change-risk").textContent = cs.risk_level;
-            document.getElementById("sub-change-risk").textContent = `Net Loss: ${cs.deforested.hectares} ha`;
-            document.getElementById("val-change-loss").textContent = `${cs.deforested.hectares} ha`;
-            document.getElementById("sub-change-loss").textContent = `${cs.deforested.percentage}% of area`;
-            document.getElementById("val-change-dense").textContent = `${cs.stable_dense.hectares} ha`;
-            document.getElementById("sub-change-dense").textContent = `${cs.stable_dense.percentage}% of area`;
-            document.getElementById("val-change-ndvi").textContent = (cs.mean_delta_ndvi >= 0 ? "+" : "") + cs.mean_delta_ndvi.toFixed(4);
+            const bm = summary.baseline_meta;
+            const rm = summary.recent_meta;
+
+            if (summary.timestamp) {
+                document.getElementById("change-last-run-badge").textContent = `Last Run: ${summary.timestamp.split(' ')[0]}`;
+                document.getElementById("change-last-run-badge").className = "badge badge-green";
+                document.getElementById("change-timestamp").textContent = `Executed: ${summary.timestamp}`;
+            }
+
+            if (cs) {
+                // KPIs
+                const riskBadge = document.getElementById("badge-change-risk");
+                const riskVal = document.getElementById("val-change-risk");
+                if (riskBadge) {
+                    riskBadge.textContent = cs.risk_level || "Standard";
+                    riskBadge.className = cs.risk_level && cs.risk_level.includes("Alert") ? "badge badge-danger" : "badge badge-green";
+                }
+                if (riskVal) riskVal.textContent = cs.risk_level || "Standard";
+
+                document.getElementById("val-change-loss").textContent = `${cs.deforested.hectares.toFixed(2)} ha`;
+                document.getElementById("sub-change-loss").textContent = `${cs.deforested.percentage.toFixed(1)}% of monitored area`;
+
+                document.getElementById("val-change-dense").textContent = `${cs.stable_dense.hectares.toFixed(2)} ha`;
+                document.getElementById("sub-change-dense").textContent = `${cs.stable_dense.percentage.toFixed(1)}% persistent dense forest`;
+                document.getElementById("sub-change-light").textContent = `Stable Light: ${cs.stable_light.hectares.toFixed(1)} ha (${cs.stable_light.percentage.toFixed(1)}%)`;
+
+                const dNdvi = cs.mean_delta_ndvi;
+                const sign = dNdvi >= 0 ? "+" : "";
+                const valNdviEl = document.getElementById("val-change-ndvi");
+                valNdviEl.textContent = sign + dNdvi.toFixed(4);
+                valNdviEl.className = dNdvi < -0.05 ? "kpi-value text-danger" : dNdvi > 0.05 ? "kpi-value text-success" : "kpi-value text-info";
+
+                document.getElementById("val-change-pixels").textContent = `${cs.total_valid_pixels.toLocaleString()} px`;
+                document.getElementById("sub-change-confidence").textContent = `100% SCL Validated (${cs.total_area_ha.toFixed(1)} ha)`;
+                if (rm && rm.cloud_percentage !== undefined) {
+                    document.getElementById("sub-change-clouds").textContent = `Scene Cloud: ${rm.cloud_percentage.toFixed(1)}% (SCL Filtered)`;
+                }
+
+                // Classification Summary Table
+                document.getElementById("tbl-deforest-ha").textContent = `${cs.deforested.hectares.toFixed(2)} ha`;
+                document.getElementById("tbl-deforest-km2").textContent = `${cs.deforested.km2.toFixed(3)} km²`;
+                document.getElementById("tbl-deforest-pct").textContent = `${cs.deforested.percentage.toFixed(2)}%`;
+
+                document.getElementById("tbl-dense-ha").textContent = `${cs.stable_dense.hectares.toFixed(2)} ha`;
+                document.getElementById("tbl-dense-km2").textContent = `${cs.stable_dense.km2.toFixed(3)} km²`;
+                document.getElementById("tbl-dense-pct").textContent = `${cs.stable_dense.percentage.toFixed(2)}%`;
+
+                document.getElementById("tbl-light-ha").textContent = `${cs.stable_light.hectares.toFixed(2)} ha`;
+                document.getElementById("tbl-light-km2").textContent = `${cs.stable_light.km2.toFixed(3)} km²`;
+                document.getElementById("tbl-light-pct").textContent = `${cs.stable_light.percentage.toFixed(2)}%`;
+
+                document.getElementById("tbl-regrowth-ha").textContent = `${cs.regrowth.hectares.toFixed(2)} ha`;
+                document.getElementById("tbl-regrowth-km2").textContent = `${cs.regrowth.km2.toFixed(3)} km²`;
+                document.getElementById("tbl-regrowth-pct").textContent = `${cs.regrowth.percentage.toFixed(2)}%`;
+
+                document.getElementById("tbl-nonforest-ha").textContent = `${cs.non_forest.hectares.toFixed(2)} ha`;
+                document.getElementById("tbl-nonforest-km2").textContent = `${cs.non_forest.km2.toFixed(3)} km²`;
+                document.getElementById("tbl-nonforest-pct").textContent = `${cs.non_forest.percentage.toFixed(2)}%`;
+            }
+
+            // Scene metadata cards
+            if (bm) {
+                document.getElementById("meta-base-acq").textContent = bm.acquisition_date || "Observed";
+                document.getElementById("meta-base-window").textContent = `${bm.query_start_date} to ${bm.query_end_date}`;
+                document.getElementById("meta-base-cloud").textContent = `${bm.cloud_percentage}%`;
+                document.getElementById("meta-base-passes").textContent = `${bm.observations_available || 'Multiple'}`;
+                document.getElementById("meta-base-spacecraft").textContent = bm.spacecraft || "Sentinel-2A";
+                document.getElementById("hud-base-date").textContent = (bm.acquisition_date || "2022").split(' ')[0];
+            }
+
+            if (rm) {
+                document.getElementById("meta-recent-acq").textContent = rm.acquisition_date || "Observed";
+                document.getElementById("meta-recent-window").textContent = `${rm.query_start_date} to ${rm.query_end_date}`;
+                document.getElementById("meta-recent-cloud").textContent = `${rm.cloud_percentage}%`;
+                document.getElementById("meta-recent-passes").textContent = `${rm.observations_available || 'Multiple'}`;
+                document.getElementById("meta-recent-spacecraft").textContent = rm.spacecraft || "Sentinel-2A";
+                document.getElementById("hud-recent-date").textContent = (rm.acquisition_date || "2023").split(' ')[0];
+            }
+
+            // Reposition Change Map to analysis location
+            if (summary.location && changeMap) {
+                const sLat = summary.location.latitude;
+                const sLon = summary.location.longitude;
+                changeMap.setView([sLat, sLon], 12);
+                if (changeMarker) changeMarker.setLatLng([sLat, sLon]);
+                if (changeCircle) changeCircle.setLatLng([sLat, sLon]);
+                updateChangeMapLayers(sLat, sLon);
+            }
         }
     }
 
@@ -533,7 +960,8 @@ document.addEventListener("DOMContentLoaded", function () {
             document.querySelectorAll("#change-results-panel .tab-content").forEach(c => c.classList.remove("active"));
             this.classList.add("active");
             const tabId = this.getAttribute("data-tab");
-            document.getElementById(`${tabId}-tab`).classList.add("active");
+            const targetContent = document.getElementById(`${tabId}-tab`) || document.getElementById(`${tabId}-tab-content`);
+            if (targetContent) targetContent.classList.add("active");
         });
     });
 
@@ -552,6 +980,24 @@ document.addEventListener("DOMContentLoaded", function () {
         a.download = `ForestWatch_Report_${state.currentAnalysisId || 'export'}.txt`;
         a.click();
     });
+
+    // Carry to Historical Trends button
+    const btnCarryHist = document.getElementById("btn-carry-to-historical");
+    if (btnCarryHist) {
+        btnCarryHist.addEventListener("click", () => {
+            switchWorkspace("historical");
+        });
+    }
+
+    // Initial check: if an analysis already exists on server, load it automatically
+    fetch("/status")
+    .then(r => r.json())
+    .then(d => {
+        if (d && d.analysis_id && d.status === "completed") {
+            loadChangeResults(d.analysis_id, d.summary);
+        }
+    })
+    .catch(err => console.log("Initial status query:", err));
 
     // =========================================================================
     // Vegetation Health Workspace
@@ -759,4 +1205,11 @@ document.addEventListener("DOMContentLoaded", function () {
     updateActiveLocationDisplay();
     loadSavedLocations();
     loadOverviewMetrics();
+
+    // Activate requested workspace from Feature Selection page: ?view=... or ?tab=...
+    const urlParams = new URLSearchParams(window.location.search);
+    const initialView = urlParams.get("view") || urlParams.get("tab");
+    if (initialView && workspaces[initialView]) {
+        switchWorkspace(initialView);
+    }
 });

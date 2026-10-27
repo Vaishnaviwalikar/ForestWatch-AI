@@ -1,0 +1,406 @@
+/* =========================================================================
+   ForestWatch AI — Feature Selection Hub Stylesheet
+   Design Inspiration: RoadSafe AI Dashboard / Environmental Geospatial SaaS
+   ========================================================================= */
+
+:root {
+    --hub-bg-start: #081a13;
+    --hub-bg-mid: #0f3024;
+    --hub-bg-end: #05100c;
+    --hub-card-bg: rgba(255, 255, 255, 0.05);
+    --hub-card-bg-hover: rgba(255, 255, 255, 0.085);
+    --hub-card-border: rgba(255, 255, 255, 0.12);
+    --hub-card-border-hover: rgba(159, 227, 176, 0.45);
+    --hub-text-primary: #FFFFFF;
+    --hub-text-secondary: rgba(255, 255, 255, 0.78);
+    --hub-text-muted: rgba(255, 255, 255, 0.55);
+    --hub-accent-mint: #9FE3B0;
+    --hub-accent-green: #238B57;
+    --hub-glow-green: rgba(35, 139, 87, 0.35);
+    --hub-grid-color: rgba(159, 227, 176, 0.045);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body.feature-selection-body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+    background: radial-gradient(circle at 50% 12%, var(--hub-bg-mid) 0%, var(--hub-bg-start) 55%, var(--hub-bg-end) 100%);
+    color: var(--hub-text-primary);
+    position: relative;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Subtle blueprint / satellite grid pattern across the entire background */
+.hub-grid-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: 
+        linear-gradient(to right, var(--hub-grid-color) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--hub-grid-color) 1px, transparent 1px);
+    background-size: 56px 56px;
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Ambient glow orbs in the background */
+.hub-ambient-glow {
+    position: fixed;
+    width: 600px;
+    height: 600px;
+    border-radius: 50%;
+    filter: blur(120px);
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0.35;
+}
+
+.hub-glow-1 {
+    top: -150px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: radial-gradient(circle, rgba(35, 139, 87, 0.55) 0%, transparent 70%);
+}
+
+.hub-glow-2 {
+    bottom: -150px;
+    left: 10%;
+    background: radial-gradient(circle, rgba(20, 80, 55, 0.45) 0%, transparent 70%);
+}
+
+.hub-glow-3 {
+    top: 40%;
+    right: 5%;
+    background: radial-gradient(circle, rgba(16, 120, 80, 0.3) 0%, transparent 70%);
+}
+
+/* Content Container */
+.hub-container {
+    position: relative;
+    z-index: 2;
+    max-width: 1260px;
+    margin: 0 auto;
+    padding: 48px 24px 40px;
+    width: 100%;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Hub Header Section */
+.hub-header {
+    text-align: center;
+    margin-bottom: 44px;
+}
+
+.hub-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(35, 139, 87, 0.22);
+    color: var(--hub-accent-mint);
+    border: 1px solid rgba(159, 227, 176, 0.3);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    margin-bottom: 18px;
+    backdrop-filter: blur(8px);
+}
+
+.hub-badge-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--hub-accent-mint);
+    box-shadow: 0 0 8px var(--hub-accent-mint);
+    display: inline-block;
+}
+
+.hub-title {
+    font-size: 2.75rem;
+    font-weight: 800;
+    color: #FFFFFF;
+    letter-spacing: -0.8px;
+    margin-bottom: 12px;
+    line-height: 1.2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+}
+
+.hub-title-icon {
+    font-size: 2.6rem;
+    filter: drop-shadow(0 0 12px rgba(159, 227, 176, 0.4));
+}
+
+.hub-title-text {
+    background: linear-gradient(180deg, #FFFFFF 30%, #D8F3DC 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.hub-title-accent {
+    color: var(--hub-accent-mint);
+    -webkit-text-fill-color: var(--hub-accent-mint);
+}
+
+.hub-subtitle {
+    font-size: 1.12rem;
+    color: var(--hub-text-secondary);
+    font-weight: 400;
+    max-width: 680px;
+    margin: 0 auto;
+    letter-spacing: 0.2px;
+    line-height: 1.5;
+}
+
+/* Feature Cards Grid */
+.hub-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 28px;
+    margin-bottom: 40px;
+}
+
+/* Individual Feature Card (matches RoadSafe AI layout & style) */
+.hub-card {
+    background: var(--hub-card-bg);
+    border: 1px solid var(--hub-card-border);
+    border-radius: 22px;
+    padding: 34px 28px 28px;
+    text-decoration: none;
+    color: inherit;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+    transition: all 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+    outline: none;
+}
+
+.hub-card:hover, .hub-card:focus-visible {
+    background: var(--hub-card-bg-hover);
+    border-color: var(--hub-card-border-hover);
+    transform: translateY(-8px);
+    box-shadow: 0 20px 42px rgba(0, 0, 0, 0.45), 0 0 32px var(--hub-glow-green);
+}
+
+.hub-card:focus-visible {
+    box-shadow: 0 0 0 3px var(--hub-accent-mint), 0 20px 42px rgba(0, 0, 0, 0.45);
+}
+
+/* Top-right Status Badge */
+.hub-card-status {
+    position: absolute;
+    top: 18px;
+    right: 20px;
+    background: rgba(35, 139, 87, 0.26);
+    color: var(--hub-accent-mint);
+    border: 1px solid rgba(159, 227, 176, 0.35);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.9px;
+    padding: 3px 9px;
+    border-radius: 12px;
+    text-transform: uppercase;
+}
+
+/* Center Top Glowing Icon */
+.hub-card-icon-box {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 18px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hub-card:hover .hub-card-icon-box {
+    transform: scale(1.08);
+}
+
+.hub-card-icon-box svg {
+    width: 34px;
+    height: 34px;
+}
+
+/* Individual Icon Themes */
+.icon-explorer {
+    background: rgba(159, 227, 176, 0.12);
+    border-color: rgba(159, 227, 176, 0.28);
+    box-shadow: 0 0 20px rgba(159, 227, 176, 0.2);
+    color: #9FE3B0;
+}
+
+.icon-vegetation {
+    background: rgba(56, 161, 105, 0.16);
+    border-color: rgba(72, 187, 120, 0.3);
+    box-shadow: 0 0 20px rgba(72, 187, 120, 0.22);
+    color: #48BB78;
+}
+
+.icon-change {
+    background: rgba(237, 137, 54, 0.14);
+    border-color: rgba(237, 137, 54, 0.3);
+    box-shadow: 0 0 20px rgba(237, 137, 54, 0.2);
+    color: #ED8936;
+}
+
+.icon-historical {
+    background: rgba(56, 178, 172, 0.14);
+    border-color: rgba(79, 209, 197, 0.3);
+    box-shadow: 0 0 20px rgba(79, 209, 197, 0.2);
+    color: #4FD1C5;
+}
+
+.icon-reports {
+    background: rgba(66, 153, 225, 0.14);
+    border-color: rgba(99, 179, 237, 0.3);
+    box-shadow: 0 0 20px rgba(99, 179, 237, 0.2);
+    color: #63B3ED;
+}
+
+.icon-overview {
+    background: rgba(159, 122, 234, 0.14);
+    border-color: rgba(183, 148, 244, 0.3);
+    box-shadow: 0 0 20px rgba(183, 148, 244, 0.2);
+    color: #B794F4;
+}
+
+/* Card Title */
+.hub-card-title {
+    font-size: 1.32rem;
+    font-weight: 700;
+    color: #FFFFFF;
+    text-align: center;
+    margin-bottom: 8px;
+    letter-spacing: -0.3px;
+}
+
+/* Card Description */
+.hub-card-desc {
+    font-size: 0.88rem;
+    color: var(--hub-text-secondary);
+    text-align: center;
+    line-height: 1.5;
+    margin-bottom: 24px;
+    min-height: 42px;
+}
+
+/* Feature Bulleted List */
+.hub-card-features {
+    list-style: none;
+    margin-bottom: 24px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding-top: 18px;
+}
+
+.hub-card-features li {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.85);
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    line-height: 1.4;
+}
+
+.check-icon {
+    color: var(--hub-accent-mint);
+    font-weight: 800;
+    font-size: 0.88rem;
+    line-height: 1.2;
+    flex-shrink: 0;
+}
+
+/* Card Bottom Action Callout */
+.hub-card-action {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: var(--hub-accent-mint);
+    transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.hub-card:hover .hub-card-action {
+    color: #FFFFFF;
+}
+
+.hub-card:hover .action-arrow {
+    transform: translateX(4px);
+}
+
+.action-arrow {
+    transition: transform 0.2s ease;
+    font-size: 1.05rem;
+}
+
+/* Hub Footer */
+.hub-footer {
+    text-align: center;
+    padding: 24px 0 10px;
+    color: var(--hub-text-muted);
+    font-size: 0.82rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    position: relative;
+    z-index: 2;
+}
+
+.hub-footer a {
+    color: var(--hub-accent-mint);
+    text-decoration: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1080px) {
+    .hub-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 22px;
+    }
+    .hub-title {
+        font-size: 2.3rem;
+    }
+}
+
+@media (max-width: 680px) {
+    .hub-grid {
+        grid-template-columns: 1fr;
+    }
+    .hub-title {
+        font-size: 1.85rem;
+        flex-direction: column;
+        gap: 6px;
+    }
+    .hub-subtitle {
+        font-size: 0.98rem;
+    }
+    .hub-container {
+        padding: 32px 16px;
+    }
+}

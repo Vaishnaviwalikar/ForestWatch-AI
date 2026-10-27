@@ -1,0 +1,17 @@
+{
+  "year": 2021,
+  "period": "2021-01-01 to 2021-05-31",
+  "status": "success",
+  "observation_count": 52,
+  "mean_ndvi": 0.3269,
+  "median_ndvi": 0.3227,
+  "min_ndvi": -0.4194,
+  "max_ndvi": 0.7963,
+  "std_ndvi": 0.14,
+  "dense_pct": 8.2,
+  "light_pct": 82.65,
+  "non_forest_pct": 9.15,
+  "valid_pixels": 12210,
+  "total_pixels": 12210,
+  "quality_flag": "High Confidence"
+}
