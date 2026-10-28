@@ -1,0 +1,17 @@
+{
+  "year": 2023,
+  "period": "2023-01-01 to 2023-05-31",
+  "status": "success",
+  "observation_count": 8,
+  "mean_ndvi": 0.4379,
+  "median_ndvi": 0.4479,
+  "min_ndvi": 0.1879,
+  "max_ndvi": 0.7879,
+  "std_ndvi": 0.1144,
+  "dense_pct": 22.07,
+  "light_pct": 31.76,
+  "non_forest_pct": 11.53,
+  "valid_pixels": 15000,
+  "total_pixels": 15000,
+  "quality_flag": "Simulation Fallback"
+}

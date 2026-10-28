@@ -1,0 +1,17 @@
+{
+  "year": 2024,
+  "period": "2024-01-01 to 2024-05-31",
+  "status": "success",
+  "observation_count": 4,
+  "mean_ndvi": 0.4085,
+  "median_ndvi": 0.4185,
+  "min_ndvi": 0.1585,
+  "max_ndvi": 0.7585,
+  "std_ndvi": 0.1339,
+  "dense_pct": 17.36,
+  "light_pct": 24.46,
+  "non_forest_pct": 10.12,
+  "valid_pixels": 15000,
+  "total_pixels": 15000,
+  "quality_flag": "Simulation Fallback"
+}

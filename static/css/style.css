@@ -1834,6 +1834,11 @@ footer {
 .stable-light-swatch { background-color: #90ee90; }
 .regrowth-swatch { background-color: #00b0ff; }
 .non-forest-swatch { background-color: #bdbdbd; }
+.ndvi-dense-swatch { background-color: #00441b; }
+.ndvi-mod-swatch { background-color: #a6d96a; }
+.ndvi-sparse-swatch { background-color: #ffffbf; }
+.ndvi-bare-swatch { background-color: #d7191c; }
+.masked-transparent-swatch { background-color: transparent; border: 1px dashed rgba(255,255,255,0.45); }
 
 /* 5. Before-and-After Scene Comparison */
 .scene-comparison-cards {
@@ -1948,5 +1953,567 @@ footer {
     }
     .pipeline-steps {
         grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* =========================================================================
+   Phase 1: Forest Operations Command Center & Incident Workspace Styles
+   ========================================================================= */
+
+/* Operations Header Card */
+.ops-header-card {
+    background: linear-gradient(135deg, #071a13 0%, #0f3626 50%, #092017 100%);
+    color: #FFFFFF;
+    border-radius: 14px;
+    padding: 26px 32px;
+    margin-bottom: 22px;
+    border: 1px solid rgba(159, 227, 176, 0.25);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+}
+
+.ops-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(159, 227, 176, 0.14);
+    color: var(--mint-accent);
+    border: 1px solid rgba(159, 227, 176, 0.35);
+    padding: 4px 12px;
+    border-radius: 16px;
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+}
+
+.ops-title {
+    font-size: 1.85rem;
+    font-weight: 800;
+    color: #FFFFFF;
+    letter-spacing: -0.6px;
+    margin-bottom: 8px;
+    line-height: 1.2;
+}
+
+.ops-subtitle {
+    font-size: 0.95rem;
+    color: rgba(255, 255, 255, 0.82);
+    line-height: 1.5;
+    max-width: 780px;
+    margin-bottom: 14px;
+}
+
+/* Operational Workflow Banner */
+.ops-workflow-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.06);
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.7);
+    flex-wrap: wrap;
+}
+
+.workflow-step {
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.workflow-step.active {
+    background: rgba(35, 139, 87, 0.4);
+    color: var(--mint-accent);
+    font-weight: 700;
+}
+
+.wf-arrow {
+    color: rgba(255, 255, 255, 0.35);
+    font-size: 0.8rem;
+}
+
+.ops-header-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.btn-ops-action {
+    background: linear-gradient(180deg, #d9534f 0%, #b91c1c 100%);
+    color: #FFFFFF;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 0.92rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(217, 83, 79, 0.4);
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.btn-ops-action:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(217, 83, 79, 0.55);
+}
+
+.btn-ops-outline {
+    background: transparent;
+    color: #FFFFFF;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+
+.btn-ops-outline:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+/* Operational Command KPI Grid */
+.ops-kpi-grid {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 14px;
+    margin-bottom: 22px;
+}
+
+.ops-kpi-card {
+    background: #FFFFFF;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 16px 18px;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.2s ease;
+}
+
+.ops-kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.05);
+}
+
+.ops-kpi-card.border-danger { border-top: 4px solid var(--danger); }
+.ops-kpi-card.border-warning { border-top: 4px solid var(--warning); }
+.ops-kpi-card.border-info { border-top: 4px solid #2563EB; }
+.ops-kpi-card.border-success { border-top: 4px solid var(--primary-green); }
+.ops-kpi-card.border-gray { border-top: 4px solid #64748B; }
+
+/* Large Operations Map */
+.ops-map-card {
+    padding: 0;
+    overflow: hidden;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    background: #0B1512;
+    margin-bottom: 24px;
+}
+
+.ops-map-toolbar {
+    background: #11221c;
+    padding: 12px 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.ops-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.ops-map-title {
+    color: #FFFFFF;
+    font-size: 0.95rem;
+    font-weight: 800;
+}
+
+.ops-map-filters {
+    display: flex;
+    gap: 6px;
+}
+
+.btn-map-filter {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.btn-map-filter:hover {
+    background: rgba(255, 255, 255, 0.18);
+    color: #FFFFFF;
+}
+
+.btn-map-filter.active {
+    background: var(--primary-green);
+    color: #FFFFFF;
+    border-color: var(--mint-accent);
+}
+
+.ops-map-canvas {
+    height: 480px;
+    width: 100%;
+    background-color: #0b1a13;
+}
+
+/* Operations Map Legend Bar */
+.ops-map-legend-bar {
+    background: #0d1e17;
+    padding: 10px 18px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 14px;
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.leg-title {
+    font-weight: 700;
+    color: var(--mint-accent);
+}
+
+.leg-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.leg-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.dot-critical { background-color: #D9534F; box-shadow: 0 0 6px #D9534F; }
+.dot-high { background-color: #F97316; box-shadow: 0 0 6px #F97316; }
+.dot-medium { background-color: #EAB308; }
+.dot-low { background-color: #10B981; }
+.dot-resolved { background-color: #94A3B8; }
+
+.leg-ring {
+    width: 12px;
+    height: 12px;
+    border: 2px dashed #10B981;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+/* Incident Filter Toolbar */
+.incident-filters-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Incident Badges & Elements */
+.badge-blue { background-color: #DBEAFE; color: #1E40AF; }
+.badge-purple { background-color: #EDE9FE; color: #5B21B6; }
+
+/* Operational Audit Feed */
+.ops-audit-feed {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 280px;
+    overflow-y: auto;
+    padding: 6px 0;
+}
+
+.audit-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    background: #F8FAFC;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    font-size: 0.82rem;
+}
+
+.audit-icon {
+    font-size: 1.1rem;
+    line-height: 1;
+}
+
+.audit-body {
+    flex: 1;
+}
+
+.audit-header-line {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 2px;
+}
+
+.audit-user {
+    font-weight: 700;
+    color: var(--deep-forest);
+}
+
+.audit-time {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.74rem;
+    color: var(--text-secondary);
+}
+
+.audit-desc {
+    color: var(--text-primary);
+    line-height: 1.4;
+}
+
+/* =========================================================================
+   Phase 7: Incident Workspace Modal
+   ========================================================================= */
+.modal-dialog-lg {
+    width: 1060px !important;
+    max-width: 95% !important;
+    max-height: 90vh !important;
+    overflow-y: auto;
+    padding: 24px 28px;
+}
+
+.inc-modal-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+.inc-section-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--deep-forest);
+    margin-bottom: 10px;
+}
+
+.inc-media-container {
+    background: #0B1512;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+    margin-bottom: 14px;
+    min-height: 240px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.inc-preview-img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+.inc-placeholder-box {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--mint-accent);
+}
+
+.inc-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.inc-metric-card {
+    background: #F8FAFC;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+}
+
+.inc-m-label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    font-weight: 700;
+}
+
+.inc-m-val {
+    font-size: 1.15rem;
+    font-weight: 800;
+    margin: 2px 0;
+}
+
+.inc-m-sub {
+    font-size: 0.74rem;
+    color: var(--text-secondary);
+}
+
+.inc-export-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+/* Right Column Action Cards */
+.inc-action-card {
+    background: #FFFFFF;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 14px;
+}
+
+.inc-action-card h4 {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--deep-forest);
+    margin-bottom: 10px;
+}
+
+.status-action-row {
+    display: flex;
+    gap: 8px;
+}
+
+.assign-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.form-micro-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+    display: block;
+}
+
+.inc-notes-stream, .inc-audit-stream {
+    max-height: 140px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: #F8FAFC;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+}
+
+.note-item {
+    font-size: 0.78rem;
+    background: #FFFFFF;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 6px 8px;
+}
+
+.note-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--deep-forest);
+    margin-bottom: 2px;
+}
+
+.note-time {
+    color: var(--text-secondary);
+    font-weight: 400;
+}
+
+.empty-note {
+    font-size: 0.76rem;
+    color: var(--text-secondary);
+    text-align: center;
+    padding: 10px 0;
+}
+
+/* Role Selector Pill */
+.role-selector-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: 20px;
+    padding: 3px 10px;
+}
+
+.role-icon {
+    font-size: 0.85rem;
+}
+
+.role-select-input {
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-size: 0.76rem;
+    font-weight: 600;
+    cursor: pointer;
+    outline: none;
+}
+
+.role-select-input option {
+    background: #0f172a;
+    color: #f8fafc;
+}
+
+/* Field Photo Preview in Notes */
+.note-photo-preview {
+    margin-top: 8px;
+}
+
+.note-photo-thumb {
+    max-width: 100%;
+    max-height: 140px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    transition: transform 0.2s ease;
+    cursor: pointer;
+}
+
+.note-photo-thumb:hover {
+    transform: scale(1.02);
+    border-color: var(--accent-emerald);
+}
+
+/* Responsive */
+@media (max-width: 1080px) {
+    .ops-kpi-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    .inc-modal-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .ops-header-card {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .ops-kpi-grid {
+        grid-template-columns: 1fr;
     }
 }

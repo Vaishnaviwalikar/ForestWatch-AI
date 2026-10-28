@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify, request, send_from_directory, send_file, redirect, url_for
+from flask import Flask, render_template, jsonify, request, send_from_directory, send_file, redirect, url_for, session
 import os
 import sys
 import json
@@ -7,6 +7,19 @@ import threading
 import uuid
 from datetime import datetime
 from dotenv import load_dotenv
+from werkzeug.utils import secure_filename
+
+from rbac import (
+    require_role,
+    get_current_user,
+    AUTHORIZED_USERS,
+    ALL_ROLES,
+    ROLE_ADMIN,
+    ROLE_RANGE_OFFICER,
+    ROLE_FIELD_OFFICER,
+    ROLE_ANALYST
+)
+from notification_service import notification_service
 
 load_dotenv()
 
@@ -17,12 +30,17 @@ logging.basicConfig(level=logging.INFO,
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "forestwatch-ops-secret-2026")
 
 # Base paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_ROOT = os.path.join(BASE_DIR, "static", "sentinel_output")
 LOCATIONS_FILE = os.path.join(BASE_DIR, "saved_locations.json")
+EVIDENCE_UPLOAD_DIR = os.path.join(BASE_DIR, "static", "uploads", "evidence")
 os.makedirs(OUTPUT_ROOT, exist_ok=True)
+os.makedirs(EVIDENCE_UPLOAD_DIR, exist_ok=True)
+
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
 
 # Thread-safe in-memory registry of analyses
 jobs_lock = threading.Lock()
@@ -151,6 +169,14 @@ def execute_bitemporal_worker(analysis_id, params, cancel_event):
             job["rel_chart_path"] = f"sentinel_output/{analysis_id}/forest_classification_{analysis_id}.png"
             job["rel_map_path"] = f"sentinel_output/{analysis_id}/temporal_comparison_{analysis_id}.png"
 
+        # Register genuine analysis in incident tracking (rejects demo/failed runs)
+        if not result.get("summary", {}).get("is_demo_data", False):
+            try:
+                from incident_service import incident_service
+                incident_service.register_analysis(result["summary"])
+            except Exception as e:
+                logger.warning(f"Could not register incident for analysis {analysis_id}: {e}")
+
     except InterruptedError:
         with jobs_lock:
             job["status"] = "cancelled"
@@ -159,7 +185,7 @@ def execute_bitemporal_worker(analysis_id, params, cancel_event):
 
     except Exception as e:
         with jobs_lock:
-            job["status"] = "error"
+            job["status"] = "failed" if "DATA_UNAVAILABLE" in str(e) else "error"
             job["messages"].append(f"❌ Error: {str(e)}")
         logger.error(f"Error in analysis {analysis_id}: {str(e)}", exc_info=True)
 
@@ -203,7 +229,7 @@ def execute_historical_worker(analysis_id, params, cancel_event):
 
     except Exception as e:
         with jobs_lock:
-            job["status"] = "error"
+            job["status"] = "failed" if "DATA_UNAVAILABLE" in str(e) else "error"
             job["messages"].append(f"❌ Error: {str(e)}")
         logger.error(f"Error in historical analysis {analysis_id}: {str(e)}", exc_info=True)
 
@@ -270,7 +296,8 @@ def start_analysis():
         "recent_end": payload.get("recent_end", "2023-05-31"),
         "max_cloud_pct": float(payload.get("max_cloud_pct", 25)),
         "radius_meters": float(payload.get("radius_meters", 2000)),
-        "scale": int(payload.get("scale", 20))
+        "scale": int(payload.get("scale", 20)),
+        "demo_mode": bool(payload.get("demo_mode", False))
     }
 
     cancel_event = threading.Event()
@@ -327,7 +354,8 @@ def start_historical_analysis():
         "start_year": int(payload.get("start_year", 2019)),
         "end_year": int(payload.get("end_year", 2024)),
         "radius_meters": float(payload.get("radius_meters", 1500)),
-        "scale": int(payload.get("scale", 30))
+        "scale": int(payload.get("scale", 30)),
+        "demo_mode": bool(payload.get("demo_mode", False))
     }
 
     cancel_event = threading.Event()
@@ -543,6 +571,246 @@ def list_analyses():
                 "risk_level": change_stats.get("risk_level", "N/A")
             })
         return jsonify({"analyses": items})
+
+
+from incident_service import incident_service
+
+
+@app.route('/api/operations/summary')
+def get_operations_summary():
+    """Retrieve operational command center summary KPIs"""
+    return jsonify(incident_service.get_operations_summary())
+
+
+@app.route('/api/incidents', methods=['GET'])
+def get_incidents():
+    """List operational alerts and incidents with filters"""
+    status = request.args.get("status")
+    priority = request.args.get("priority")
+    search = request.args.get("search") or request.args.get("q")
+    incidents = incident_service.get_incidents(status=status, priority=priority, search=search)
+    return jsonify({"incidents": incidents, "count": len(incidents)})
+
+
+@app.route('/api/incidents/<incident_id>', methods=['GET'])
+def get_incident_detail(incident_id):
+    """Retrieve complete incident details, source analysis, and audit log"""
+    inc = incident_service.get_incident(incident_id)
+    if not inc:
+        return jsonify({"error": "Incident not found"}), 404
+
+    aid = inc.get("analysis_id")
+    if aid:
+        inc["map_url"] = f"/static/sentinel_output/{aid}/temporal_comparison_{aid}.png"
+        inc["chart_url"] = f"/static/sentinel_output/{aid}/forest_classification_{aid}.png"
+        inc["report_url"] = f"/report?id={aid}"
+        inc["pdf_url"] = f"/export/pdf/{aid}"
+        inc["csv_url"] = f"/export/csv/{aid}"
+
+    res = dict(inc)
+    res["incident"] = inc
+    return jsonify(res)
+
+
+@app.route('/api/incidents/<incident_id>/status', methods=['POST'])
+@require_role([ROLE_ADMIN, ROLE_RANGE_OFFICER, ROLE_FIELD_OFFICER])
+def update_incident_status(incident_id):
+    """Update incident workflow status (New -> Assigned -> Field Verification -> Resolved)"""
+    payload = request.get_json(silent=True) or request.form or {}
+    new_status = payload.get("status")
+    if not new_status:
+        return jsonify({"error": "Status is required"}), 400
+
+    curr_user = get_current_user()
+    user = payload.get("user") or curr_user.get("name", "Field Supervisor")
+    notes = payload.get("notes") or payload.get("note") or ""
+    inc, err = incident_service.update_status(incident_id, new_status, user=user, notes=notes)
+    if err:
+        return jsonify({"error": err}), 404
+    res = dict(inc)
+    res["incident"] = inc
+    res["status_action"] = "updated"
+    return jsonify(res)
+
+
+@app.route('/api/incidents/<incident_id>/assign', methods=['POST'])
+@require_role([ROLE_ADMIN, ROLE_RANGE_OFFICER])
+def assign_incident_officer(incident_id):
+    """Assign incident to an officer or range team"""
+    payload = request.get_json(silent=True) or request.form or {}
+    officer = payload.get("officer")
+    if not officer:
+        return jsonify({"error": "Officer name is required"}), 400
+
+    range_name = payload.get("range", "")
+    curr_user = get_current_user()
+    user = payload.get("user") or curr_user.get("name", "Department Administrator")
+    notes = payload.get("notes") or payload.get("note") or ""
+
+    inc, err = incident_service.assign_officer(incident_id, officer, range_name=range_name, user=user, notes=notes)
+    if err:
+        return jsonify({"error": err}), 404
+    res = dict(inc)
+    res["incident"] = inc
+    res["status_action"] = "assigned"
+    return jsonify(res)
+
+
+@app.route('/api/incidents/<incident_id>/notes', methods=['POST'])
+@require_role([ROLE_ADMIN, ROLE_RANGE_OFFICER, ROLE_FIELD_OFFICER])
+def add_incident_note(incident_id):
+    """Add field investigation evidence or notes"""
+    payload = request.get_json(silent=True) or request.form or {}
+    curr_user = get_current_user()
+    author = payload.get("author") or curr_user.get("name", "Field Officer")
+    text = payload.get("text", "").strip()
+    if not text:
+        return jsonify({"error": "Note text is required"}), 400
+
+    photo_url = payload.get("photo_url")
+    inc, err = incident_service.add_field_note(incident_id, author, text, photo_url=photo_url)
+    if err:
+        return jsonify({"error": err}), 404
+    res = dict(inc)
+    res["incident"] = inc
+    res["status_action"] = "saved"
+    return jsonify(res)
+
+
+@app.route('/api/incidents/<incident_id>/upload-photo', methods=['POST'])
+@require_role([ROLE_ADMIN, ROLE_RANGE_OFFICER, ROLE_FIELD_OFFICER])
+def upload_incident_photo(incident_id):
+    """Upload ground-truthing photographic evidence for an incident"""
+    inc = incident_service.get_incident(incident_id)
+    if not inc:
+        return jsonify({"error": "Incident not found"}), 404
+
+    if 'photo' not in request.files:
+        return jsonify({"error": "No photo file provided in request ('photo' field required)"}), 400
+
+    file = request.files['photo']
+    if file.filename == '':
+        return jsonify({"error": "No file selected"}), 400
+
+    caption = request.form.get("caption", "").strip() or "Ground-truthing photographic evidence"
+    curr_user = get_current_user()
+    author = request.form.get("author") or curr_user.get("name", "Field Officer")
+
+    ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+    if ext not in ALLOWED_EXTENSIONS:
+        return jsonify({"error": f"Invalid image format '{ext}'. Allowed: {sorted(list(ALLOWED_EXTENSIONS))}"}), 400
+
+    incident_dir = os.path.join(EVIDENCE_UPLOAD_DIR, incident_id)
+    os.makedirs(incident_dir, exist_ok=True)
+
+    safe_name = secure_filename(file.filename)
+    unique_filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}_{safe_name}"
+    save_path = os.path.join(incident_dir, unique_filename)
+    file.save(save_path)
+
+    relative_url = f"/static/uploads/evidence/{incident_id}/{unique_filename}"
+    inc, err = incident_service.add_field_note(incident_id, author=author, text=caption, photo_url=relative_url)
+    if err:
+        return jsonify({"error": err}), 404
+
+    res = dict(inc)
+    res["incident"] = inc
+    res["photo_url"] = relative_url
+    res["status_action"] = "photo_uploaded"
+    return jsonify(res)
+
+
+@app.route('/api/notifications', methods=['GET'])
+def get_notifications():
+    """List notification delivery audit trail"""
+    incident_id = request.args.get("incident_id")
+    channel = request.args.get("channel")
+    limit = int(request.args.get("limit", 50))
+    logs = notification_service.get_audit_trail(incident_id=incident_id, channel=channel, limit=limit)
+    return jsonify({
+        "notifications": logs,
+        "count": len(logs),
+        "test_mode": notification_service.test_mode
+    })
+
+
+@app.route('/api/notifications/test', methods=['POST'])
+@require_role([ROLE_ADMIN, ROLE_RANGE_OFFICER])
+def test_notification():
+    """Trigger a safe test notification in test mode across configured channels"""
+    payload = request.get_json(silent=True) or request.form or {}
+    incident_id = payload.get("incident_id")
+    curr_user = get_current_user()
+
+    if incident_id:
+        inc = incident_service.get_incident(incident_id)
+    else:
+        incidents = incident_service.get_incidents()
+        inc = incidents[0] if incidents else {
+            "id": "INC-TEST",
+            "location_name": "Surveillance Test Reserve",
+            "priority": "High",
+            "affected_ha": 35.5
+        }
+
+    results = notification_service.dispatch(
+        event_type="new_alert",
+        incident=inc,
+        user=curr_user.get("name", "Test Officer"),
+        force=True
+    )
+    return jsonify({
+        "status": "success",
+        "message": f"Dispatched {len(results)} simulated test notifications.",
+        "results": results,
+        "test_mode": notification_service.test_mode
+    })
+
+
+@app.route('/api/notifications/recipients', methods=['GET'])
+def get_notification_recipients():
+    """Get registered notification recipients and priority thresholds"""
+    return jsonify({
+        "recipients": notification_service.recipients,
+        "test_mode": notification_service.test_mode
+    })
+
+
+@app.route('/api/auth/current-user', methods=['GET'])
+def get_auth_user():
+    """Get active session user identity, role, badge and permissions"""
+    user = get_current_user()
+    return jsonify({
+        "user": user,
+        "available_roles": ALL_ROLES,
+        "authorized_users": list(AUTHORIZED_USERS.values())
+    })
+
+
+@app.route('/api/auth/switch-role', methods=['POST'])
+def switch_auth_role():
+    """Switch active operational role (for testing and field workflow simulation)"""
+    payload = request.get_json(silent=True) or request.form or {}
+    role = payload.get("role")
+    name = payload.get("name")
+    
+    if not role:
+        return jsonify({"error": "Role is required"}), 400
+
+    session["user_role"] = role
+    if name:
+        session["user_name"] = name
+    else:
+        for u in AUTHORIZED_USERS.values():
+            if u["role"] == role:
+                session["user_name"] = u["name"]
+                break
+
+    user = get_current_user()
+    return jsonify({
+        "status": "switched",
+        "current_user": user
+    })
 
 
 @app.route('/api/locations', methods=['GET', 'POST'])

@@ -100,9 +100,14 @@ def get_sentinel2_tile_urls(lat, lon, max_cloud_pct=30):
         rgb_map = masked.select(['B4', 'B3', 'B2']).getMapId({'min': 0, 'max': 2500})
         rgb_url = rgb_map['tile_fetcher'].url_format
 
-        # NDVI layer
+        # NDVI layer: Mask negative/water values and apply standard vegetation gradient (Red -> Yellow -> Green)
         ndvi = masked.normalizedDifference(['B8', 'B4'])
-        ndvi_map = ndvi.getMapId({'min': -0.1, 'max': 0.8, 'palette': ['#0000ff', '#ffffff', '#ffff00', '#228b22', '#004d00']})
+        ndvi_veg = ndvi.updateMask(ndvi.gte(0.0))
+        ndvi_map = ndvi_veg.getMapId({
+            'min': 0.0,
+            'max': 0.85,
+            'palette': ['#d7191c', '#fdae61', '#ffffbf', '#a6d96a', '#1a9641', '#00441b']
+        })
         ndvi_url = ndvi_map['tile_fetcher'].url_format
 
         return {
@@ -201,13 +206,17 @@ def fetch_sentinel2_bands(lat, lon, start_date, end_date, radius_meters=2000, sc
     # Apply SCL cloud & shadow mask if enabled
     processed_img = _mask_scl_clouds(img) if use_scl_mask else img
 
-    # Reproject to EPSG:3857 at specified scale
-    scaled_bands = processed_img.select(['B4', 'B8']).multiply(0.0001).reproject(crs='EPSG:3857', scale=scale)
+    # Cast bands to Float before sampleRectangle to ensure compatibility with defaultValue=-9999.0
+    scaled_bands = (processed_img.select(['B4', 'B8'])
+                    .toFloat()
+                    .multiply(0.0001)
+                    .reproject(crs='EPSG:3857', scale=scale)
+                    .toFloat())
 
     if cancel_event and cancel_event.is_set():
         raise InterruptedError("Operation cancelled by user")
 
-    sampled = scaled_bands.sampleRectangle(region=aoi, defaultValue=0)
+    sampled = scaled_bands.sampleRectangle(region=aoi, defaultValue=-9999.0)
     b4_data = np.array(sampled.get('B4').getInfo(), dtype=np.float32)
     b8_data = np.array(sampled.get('B8').getInfo(), dtype=np.float32)
 
@@ -216,7 +225,11 @@ def fetch_sentinel2_bands(lat, lon, start_date, end_date, radius_meters=2000, sc
     total_area_ha = (height * width * pixel_area_m2) / 10000.0
 
     metadata = {
-        "source": "Google Earth Engine (COPERNICUS/S2_SR_HARMONIZED)",
+        "source": "Copernicus Sentinel-2 Level-2A via Google Earth Engine",
+        "data_source": "COPERNICUS_SENTINEL_2_L2A",
+        "processing_mode": "REAL",
+        "is_demo_data": False,
+        "provenance": "Copernicus Sentinel-2 Level-2A Surface Reflectance via Google Earth Engine",
         "scene_id": scene_id,
         "acquisition_date": acquisition_date,
         "cloud_percentage": round(cloud_pct, 2),
@@ -238,15 +251,18 @@ def fetch_sentinel2_bands(lat, lon, start_date, end_date, radius_meters=2000, sc
 
 
 def fetch_bitemporal_sentinel2(lat, lon, baseline_start, baseline_end, recent_start, recent_end,
-                               radius_meters=2000, scale=20, max_cloud_pct=25, cancel_event=None):
+                               radius_meters=2000, scale=20, max_cloud_pct=25,
+                               demo_mode=False, cancel_event=None):
     """
-    Fetch bitemporal Sentinel-2 observations (Baseline and Recent) for genuine change and deforestation detection.
+    Fetch bitemporal Sentinel-2 observations (Baseline and Recent) for genuine change and vegetation monitoring.
+    Never silently substitutes synthetic data in REAL analysis mode.
     """
     if cancel_event and cancel_event.is_set():
         raise InterruptedError("Operation cancelled by user")
 
     logger.info("Initializing Sentinel-2 bitemporal data loader with SCL masking...")
     gee_ok = is_gee_available()
+    gee_error = None
 
     if gee_ok:
         try:
@@ -288,22 +304,34 @@ def fetch_bitemporal_sentinel2(lat, lon, baseline_start, baseline_end, recent_st
         except InterruptedError:
             raise
         except Exception as e:
-            logger.warning(f"GEE retrieval failed ({str(e)}). Falling back to realistic simulation mode.")
+            gee_error = str(e)
+            logger.warning(f"GEE retrieval failed: {gee_error}")
+    else:
+        gee_error = "Google Earth Engine is not initialized or accessible."
 
-    # Offline fallback
-    logger.info("Using realistic offline Sentinel-2 satellite data generator...")
-    return generate_synthetic_sentinel2_bands(
-        lat=lat, lon=lon,
-        baseline_date=baseline_start,
-        recent_date=recent_start,
-        scale=scale,
-        cancel_event=cancel_event
+    # If demo_mode is explicitly enabled, use synthetic simulation with clear labelling
+    if demo_mode:
+        logger.warning("DEMO MODE ENABLED: Generating synthetic Sentinel-2 simulation for offline demonstration.")
+        return generate_synthetic_sentinel2_bands(
+            lat=lat, lon=lon,
+            baseline_date=baseline_start,
+            recent_date=recent_start,
+            scale=scale,
+            cancel_event=cancel_event
+        )
+
+    # In REAL mode, NEVER silently substitute synthetic data
+    raise RuntimeError(
+        f"DATA_UNAVAILABLE: Earth Engine satellite data retrieval failed ({gee_error}). "
+        f"Silent synthetic data fallback is prohibited in REAL mode. "
+        f"Enable explicit Demo Mode if simulated data is acceptable for testing."
     )
 
 
 def fetch_multiyear_historical_sentinel2(lat, lon, start_year, end_year,
                                          season_start_md="01-01", season_end_md="05-31",
                                          radius_meters=1500, scale=30, max_cloud_pct=30,
+                                         demo_mode=False,
                                          cancel_event=None, progress_callback=None):
     """
     Perform multi-year historical satellite analysis (e.g. 2018 to 2024).
@@ -383,23 +411,27 @@ def fetch_multiyear_historical_sentinel2(lat, lon, start_year, end_year,
                 year_record["observation_count"] = obs_count
 
                 if obs_count > 0:
-                    # Apply SCL cloud masking and median compositing
+                    # Apply SCL cloud masking, median compositing, and float casting for sampleRectangle
                     masked_col = col.map(_mask_scl_clouds)
-                    composite = masked_col.select(['B4', 'B8']).median().multiply(0.0001).reproject(crs='EPSG:3857', scale=scale)
+                    composite = (masked_col.select(['B4', 'B8'])
+                                 .median()
+                                 .toFloat()
+                                 .multiply(0.0001)
+                                 .reproject(crs='EPSG:3857', scale=scale)
+                                 .toFloat())
 
                     if cancel_event and cancel_event.is_set():
                         raise InterruptedError(f"Multi-year analysis cancelled at year {year}.")
 
-                    sampled = composite.sampleRectangle(region=aoi, defaultValue=0)
+                    sampled = composite.sampleRectangle(region=aoi, defaultValue=-9999.0)
                     b4_arr = np.array(sampled.get('B4').getInfo(), dtype=np.float32)
                     b8_arr = np.array(sampled.get('B8').getInfo(), dtype=np.float32)
 
-                    # Compute NDVI
+                    # Compute NDVI (excluding nodata <= 0 and invalid reflectance)
                     denom = b8_arr + b4_arr
-                    valid_mask = (denom > 0.0001) & (b8_arr > 0)
-                    ndvi_arr = np.zeros_like(b4_arr)
-                    ndvi_arr[valid_mask] = (b8_arr[valid_mask] - b4_arr[valid_mask]) / denom[valid_mask]
-                    ndvi_arr = np.clip(ndvi_arr, -1.0, 1.0)
+                    valid_mask = (b8_arr > 0.0) & (b4_arr > 0.0) & (b8_arr <= 2.0) & (b4_arr <= 2.0) & (np.abs(denom) > 0.0001)
+                    ndvi_arr = np.full_like(b4_arr, np.nan, dtype=np.float32)
+                    ndvi_arr[valid_mask] = np.clip((b8_arr[valid_mask] - b4_arr[valid_mask]) / denom[valid_mask], -1.0, 1.0)
 
                     valid_pixels = int(np.sum(valid_mask))
                     total_pixels = int(b4_arr.size)
@@ -435,9 +467,19 @@ def fetch_multiyear_historical_sentinel2(lat, lon, start_year, end_year,
                 logger.warning(f"Error fetching historical year {year}: {e}")
                 year_record["quality_flag"] = f"GEE Query Error: {str(e)[:50]}"
 
-        # If GEE unconfigured or failed, generate realistic simulated year
+        # Handle unconfigured or failed GEE retrieval
         if year_record["status"] != "success":
-            year_record = _simulate_historical_year(lat, lon, year, start_date, end_date)
+            if demo_mode:
+                year_record = _simulate_historical_year(lat, lon, year, start_date, end_date)
+                year_record["data_source"] = "DEMO_SYNTHETIC"
+                year_record["processing_mode"] = "DEMO"
+                year_record["is_demo_data"] = True
+                year_record["provenance"] = "DEMO DATA: Simulated historical trend for demonstration only."
+            else:
+                year_record["data_source"] = "NONE"
+                year_record["processing_mode"] = "REAL"
+                year_record["is_demo_data"] = False
+                year_record["provenance"] = "Copernicus Sentinel-2: Data unavailable."
 
         # Cache valid record
         try:
@@ -486,6 +528,11 @@ def _simulate_historical_year(lat, lon, year, start_date, end_date):
         "year": year,
         "period": f"{start_date} to {end_date}",
         "status": "success",
+        "data_source": "DEMO_SYNTHETIC",
+        "processing_mode": "DEMO",
+        "is_demo_data": True,
+        "provenance": "DEMO DATA: Simulated historical trend for demonstration only.",
+        "source": "DEMO DATA (Synthetic Simulation)",
         "observation_count": int(np.random.randint(4, 12)),
         "mean_ndvi": round(base_val, 4),
         "median_ndvi": round(base_val + 0.01, 4),
@@ -497,7 +544,7 @@ def _simulate_historical_year(lat, lon, year, start_date, end_date):
         "non_forest_pct": round(float(np.random.uniform(5.0, 15.0)), 2),
         "valid_pixels": 15000,
         "total_pixels": 15000,
-        "quality_flag": "Simulation Fallback"
+        "quality_flag": "DEMO DATA (Simulated Fallback)"
     }
 
 
@@ -545,11 +592,15 @@ def generate_synthetic_sentinel2_bands(lat, lon, baseline_date, recent_date, sha
     total_area_ha = (h * w * pixel_area_m2) / 10000.0
 
     meta_baseline = {
-        "source": "Realistic Offline Simulation (Sentinel-2 Spectral Characteristics)",
-        "scene_id": f"SIM_S2A_MSIL2A_{baseline_date.replace('-', '')}",
+        "source": "DEMO DATA (Synthetic Simulation)",
+        "data_source": "DEMO_SYNTHETIC",
+        "processing_mode": "DEMO",
+        "is_demo_data": True,
+        "provenance": "DEMO DATA: Synthetic simulation for offline testing only. Not actual satellite observations.",
+        "scene_id": f"DEMO_S2A_MSIL2A_{baseline_date.replace('-', '')}",
         "acquisition_date": f"{baseline_date} 10:30:00",
         "cloud_percentage": 1.2,
-        "spacecraft": "Sentinel-2A (Simulation)",
+        "spacecraft": "Sentinel-2A (Demo Simulation)",
         "latitude": float(lat),
         "longitude": float(lon),
         "scale_meters": scale,
@@ -563,11 +614,15 @@ def generate_synthetic_sentinel2_bands(lat, lon, baseline_date, recent_date, sha
     }
 
     meta_recent = {
-        "source": "Realistic Offline Simulation (Sentinel-2 Spectral Characteristics)",
-        "scene_id": f"SIM_S2B_MSIL2A_{recent_date.replace('-', '')}",
+        "source": "DEMO DATA (Synthetic Simulation)",
+        "data_source": "DEMO_SYNTHETIC",
+        "processing_mode": "DEMO",
+        "is_demo_data": True,
+        "provenance": "DEMO DATA: Synthetic simulation for offline testing only. Not actual satellite observations.",
+        "scene_id": f"DEMO_S2B_MSIL2A_{recent_date.replace('-', '')}",
         "acquisition_date": f"{recent_date} 10:30:00",
         "cloud_percentage": 2.4,
-        "spacecraft": "Sentinel-2B (Simulation)",
+        "spacecraft": "Sentinel-2B (Demo Simulation)",
         "latitude": float(lat),
         "longitude": float(lon),
         "scale_meters": scale,

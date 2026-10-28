@@ -1,0 +1,75 @@
+[
+  {
+    "id": "REC-01",
+    "name": "Shri R. Sharma, IFS",
+    "role": "Department Admin",
+    "designation": "Divisional Forest Officer (DFO)",
+    "email": "dfo.headquarters@forest.gov.in",
+    "phone": "+91-98765-01001",
+    "enabled_channels": [
+      "in_app",
+      "email",
+      "sms"
+    ],
+    "min_priority": "High",
+    "jurisdiction": "All Conservator Sectors"
+  },
+  {
+    "id": "REC-02",
+    "name": "Rajesh Kumar",
+    "role": "Range Officer",
+    "designation": "Range Forest Officer (Northern Beat)",
+    "email": "rfo.north@forest.gov.in",
+    "phone": "+91-98765-01002",
+    "enabled_channels": [
+      "in_app",
+      "email",
+      "sms"
+    ],
+    "min_priority": "Medium",
+    "jurisdiction": "Northern Range Division"
+  },
+  {
+    "id": "REC-03",
+    "name": "P. Deshmukh",
+    "role": "Range Officer",
+    "designation": "Range Forest Officer (Western Beat)",
+    "email": "rfo.west@forest.gov.in",
+    "phone": "+91-98765-01003",
+    "enabled_channels": [
+      "in_app",
+      "email",
+      "sms"
+    ],
+    "min_priority": "Medium",
+    "jurisdiction": "Western Range Division"
+  },
+  {
+    "id": "REC-04",
+    "name": "Dr. Ananya Roy",
+    "role": "Analyst",
+    "designation": "Senior Satellite Remote Sensing Analyst",
+    "email": "analyst.geospatial@forest.gov.in",
+    "phone": "+91-98765-01004",
+    "enabled_channels": [
+      "in_app",
+      "email"
+    ],
+    "min_priority": "Critical",
+    "jurisdiction": "Geospatial Surveillance Center"
+  },
+  {
+    "id": "REC-05",
+    "name": "Beat Guard S. Patil",
+    "role": "Field Officer",
+    "designation": "Field Verification Scout",
+    "email": "beat.patil@forest.gov.in",
+    "phone": "+91-98765-01005",
+    "enabled_channels": [
+      "in_app",
+      "sms"
+    ],
+    "min_priority": "High",
+    "jurisdiction": "Sector Patrol Unit A"
+  }
+]

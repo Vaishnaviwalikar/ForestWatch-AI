@@ -15,11 +15,12 @@ class TestScientificCalculations(unittest.TestCase):
         self.assertTrue(np.all(ndvi >= -1.0) and np.all(ndvi <= 1.0))
 
     def test_ndvi_zero_denominator_and_invalid(self):
-        # Red = 0, NIR = 0 -> denominator = 0
+        # Red = 0, NIR = 0 -> invalid reflectance and near-zero denominator -> must be np.nan
         red = np.array([[0.0, 0.0]], dtype=np.float32)
         nir = np.array([[0.0, 0.0]], dtype=np.float32)
         ndvi = Anni_code.calculate_ndvi(red, nir)
-        self.assertEqual(ndvi[0, 0], 0.0)
+        self.assertTrue(np.isnan(ndvi[0, 0]))
+        self.assertTrue(np.isnan(ndvi[0, 1]))
 
     def test_classification_thresholds(self):
         # 0.6 = dense, 0.35 = light, 0.1 = non-forest

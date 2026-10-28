@@ -41,6 +41,16 @@
             </div>
 
             <div class="nav-actions">
+                <div class="role-selector-pill">
+                    <span class="role-icon">👤</span>
+                    <select id="user-role-select" class="role-select-input" title="Switch Forest Department Role">
+                        <option value="Department Administrator">Department Admin (DFO)</option>
+                        <option value="Range Officer">Range Forest Officer (RFO)</option>
+                        <option value="Field Officer">Field Officer (Beat Guard)</option>
+                        <option value="Analyst">Geospatial Analyst</option>
+                    </select>
+                    <span class="badge badge-green" id="user-badge-tag">DFO</span>
+                </div>
                 <span id="gee-status-badge" class="sensor-badge">🛰️ Sentinel-2 L2A Active</span>
             </div>
         </div>
@@ -66,127 +76,186 @@
         <main class="main-container">
 
             <!-- ===============================================================
-                 DASHBOARD 1: MAIN OVERVIEW (Control Center)
+                 DASHBOARD 1: FOREST OPERATIONS & INCIDENT COMMAND CENTER (Phase 1)
                  =============================================================== -->
             <section class="dashboard-workspace" id="ws-overview">
-                <!-- Hero Section -->
-                <div class="hero-card">
-                    <div class="hero-content">
-                        <div class="hero-badge">Copernicus Earth Observation • SCL Quality Masked</div>
-                        <h1 class="hero-title">Understand Your Forest. <span class="highlight-text">Track Every Change.</span></h1>
-                        <p class="hero-subtitle">
-                            Monitor vegetation vitality, explore historical satellite observations, and detect genuine canopy degradation using scientific NDVI metrics from Copernicus Sentinel-2.
+                
+                <!-- Operations Command Center Header -->
+                <div class="ops-header-card">
+                    <div class="ops-header-content">
+                        <div class="ops-badge">
+                            <span class="live-dot"></span>
+                            <span>State Forest Department • Surveillance & Incident Response Division</span>
+                        </div>
+                        <h1 class="ops-title">Forest Operations Command Center</h1>
+                        <p class="ops-subtitle">
+                            Authorised monitoring portal for reviewing satellite-based canopy detections, deploying field range investigations, documenting evidence, and tracking incident resolution.
                         </p>
-                        <div class="hero-buttons">
-                            <button class="btn-hero-primary" id="btn-hero-explore">🗺️ Explore a Forest</button>
-                            <button class="btn-hero-primary" id="btn-hero-change">🔬 Start Change Detection</button>
-                            <button class="btn-hero-secondary" id="btn-hero-historical">📈 View Historical Trends</button>
+                        <div class="ops-workflow-pill">
+                            <span class="workflow-step active">1. Detect</span>
+                            <span class="wf-arrow">→</span>
+                            <span class="workflow-step active">2. Alert</span>
+                            <span class="wf-arrow">→</span>
+                            <span class="workflow-step active">3. Investigate</span>
+                            <span class="wf-arrow">→</span>
+                            <span class="workflow-step">4. Assign</span>
+                            <span class="wf-arrow">→</span>
+                            <span class="workflow-step">5. Verify</span>
+                            <span class="wf-arrow">→</span>
+                            <span class="workflow-step">6. Resolve</span>
+                            <span class="wf-arrow">→</span>
+                            <span class="workflow-step">7. Report</span>
                         </div>
+                    </div>
+                    <div class="ops-header-actions">
+                        <button class="btn-ops-action" id="btn-ops-scroll-alerts">🚨 View Alert Queue (<span id="ops-btn-alert-count">--</span>)</button>
+                        <button class="btn-ops-outline" id="btn-ops-launch-change">⚖️ Run New Satellite Scan</button>
                     </div>
                 </div>
 
-                <!-- KPI Metric Cards (Real application metrics) -->
-                <div class="kpi-grid">
-                    <div class="kpi-card" id="card-stat-locs">
-                        <div class="kpi-title">Saved Monitoring Areas</div>
-                        <div class="kpi-value text-success" id="stat-total-locations">6</div>
-                        <div class="kpi-sub">Protected reserves & parks</div>
+                <!-- Operational Command KPI Metric Cards (5 Cards) -->
+                <div class="kpi-grid ops-kpi-grid">
+                    <div class="kpi-card ops-kpi-card border-danger">
+                        <div class="kpi-card-top">
+                            <span class="kpi-title">Active Unresolved Alerts</span>
+                            <span class="badge badge-danger" id="badge-unresolved-alerts">Action Required</span>
+                        </div>
+                        <div class="kpi-value text-danger" id="ops-unresolved-alerts">--</div>
+                        <div class="kpi-sub" id="ops-unresolved-sub">Critical & High Priority Detections</div>
+                        <div class="kpi-footer-note">Awaiting field investigation or supervisor review</div>
                     </div>
-                    <div class="kpi-card" id="card-stat-analyses">
-                        <div class="kpi-title">Completed Analyses</div>
-                        <div class="kpi-value text-info" id="stat-total-analyses">0</div>
-                        <div class="kpi-sub">Satellite intelligence runs</div>
+
+                    <div class="kpi-card ops-kpi-card border-warning">
+                        <div class="kpi-card-top">
+                            <span class="kpi-title">Priority Cases For Review</span>
+                            <span class="badge badge-yellow">Within 24h</span>
+                        </div>
+                        <div class="kpi-value text-warning" id="ops-priority-cases">--</div>
+                        <div class="kpi-sub">Severe Canopy Disturbance (&gt; 25 ha)</div>
+                        <div class="kpi-footer-note">Immediate range officer dispatch recommended</div>
                     </div>
-                    <div class="kpi-card" id="card-stat-alerts">
-                        <div class="kpi-title">Active Change Alerts</div>
-                        <div class="kpi-value text-warning" id="stat-active-alerts">0</div>
-                        <div class="kpi-sub">Potential canopy decline zones</div>
+
+                    <div class="kpi-card ops-kpi-card border-info">
+                        <div class="kpi-card-top">
+                            <span class="kpi-title">Ongoing Field Investigations</span>
+                            <span class="badge badge-blue">Deployed</span>
+                        </div>
+                        <div class="kpi-value text-info" id="ops-investigations">--</div>
+                        <div class="kpi-sub">Officers / Beat Guards Assigned</div>
+                        <div class="kpi-footer-note">Under on-site ground truthing verification</div>
                     </div>
-                    <div class="kpi-card" id="card-stat-status">
-                        <div class="kpi-title">Copernicus Service Status</div>
-                        <div class="kpi-value text-success" id="stat-system-status">Operational</div>
-                        <div class="kpi-sub">Level-2A Surface Reflectance</div>
+
+                    <div class="kpi-card ops-kpi-card border-success">
+                        <div class="kpi-card-top">
+                            <span class="kpi-title">Monitored Forest Reserves</span>
+                            <span class="badge badge-green">Authorized</span>
+                        </div>
+                        <div class="kpi-value text-success" id="ops-monitored-reserves">6</div>
+                        <div class="kpi-sub">Protected Parks & Wildlife Corridors</div>
+                        <div class="kpi-footer-note">Configured geographic surveillance perimeters</div>
+                    </div>
+
+                    <div class="kpi-card ops-kpi-card border-gray">
+                        <div class="kpi-card-top">
+                            <span class="kpi-title">Latest Satellite Observation</span>
+                            <span class="badge badge-green">S2 Level-2A</span>
+                        </div>
+                        <div class="kpi-value" id="ops-latest-obs" style="font-size:1.15rem; font-weight:800;">--</div>
+                        <div class="kpi-sub">Copernicus Sentinel-2 Pass</div>
+                        <div class="kpi-footer-note">SCL Cloud & Shadow Quality Filtered</div>
                     </div>
                 </div>
 
-                <!-- Overview Map & Quick Actions Grid -->
-                <div class="overview-grid">
-                    <div class="card overview-map-card">
-                        <div class="card-header">
-                            <h3>🗺️ Monitored Forest Reserves</h3>
-                            <span class="card-subtitle">Click any reserve to inspect or launch an analysis</span>
+                <!-- Operations Map & Filter Toolbar -->
+                <div class="card ops-map-card">
+                    <div class="ops-map-toolbar">
+                        <div class="ops-toolbar-left">
+                            <span class="ops-map-title">🗺️ Operational Surveillance Map</span>
+                            <div class="ops-map-filters">
+                                <button type="button" class="btn-map-filter active" id="btn-opsfilter-all">All Detections</button>
+                                <button type="button" class="btn-map-filter" id="btn-opsfilter-priority">🚨 Critical & High</button>
+                                <button type="button" class="btn-map-filter" id="btn-opsfilter-active">🔍 In Investigation</button>
+                                <button type="button" class="btn-map-filter" id="btn-opsfilter-reserves">🌲 Reserves Only</button>
+                            </div>
                         </div>
-                        <div id="overview-map" class="overview-map-canvas"></div>
+                        <div class="ops-toolbar-right">
+                            <span class="badge badge-gray" id="ops-map-marker-count">Showing 8 Detections</span>
+                        </div>
                     </div>
 
-                    <div class="card overview-actions-card">
-                        <div class="card-header">
-                            <h3>⚡ Quick Workspaces</h3>
-                        </div>
-                        <div class="quick-action-list">
-                            <div class="quick-action-item" id="qa-explorer">
-                                <div class="qa-icon">🛰️</div>
-                                <div class="qa-info">
-                                    <strong>Forest Location Explorer</strong>
-                                    <p>Live satellite true-color & NDVI layer inspection</p>
-                                </div>
-                                <span class="qa-arrow">→</span>
-                            </div>
-                            <div class="quick-action-item" id="qa-vegetation">
-                                <div class="quick-action-item-inner">
-                                    <div class="qa-icon">🌿</div>
-                                    <div class="qa-info">
-                                        <strong>Vegetation Health Workspace</strong>
-                                        <p>Compute single-epoch NDVI and canopy distribution</p>
-                                    </div>
-                                </div>
-                                <span class="qa-arrow">→</span>
-                            </div>
-                            <div class="quick-action-item" id="qa-change">
-                                <div class="qa-icon">⚖️</div>
-                                <div class="qa-info">
-                                    <strong>Change Detection Workspace</strong>
-                                    <p>Bi-temporal comparison & deforestation detection</p>
-                                </div>
-                                <span class="qa-arrow">→</span>
-                            </div>
-                            <div class="quick-action-item" id="qa-historical">
-                                <div class="qa-icon">📈</div>
-                                <div class="qa-info">
-                                    <strong>Multi-Year Historical Trends</strong>
-                                    <p>Annual composites & 2018–2024 time-series curves</p>
-                                </div>
-                                <span class="qa-arrow">→</span>
-                            </div>
-                        </div>
+                    <div id="overview-map" class="ops-map-canvas"></div>
+
+                    <!-- Map Legend -->
+                    <div class="ops-map-legend-bar">
+                        <span class="leg-title">Legend:</span>
+                        <div class="leg-pill"><span class="leg-dot dot-critical"></span> Critical Loss (&gt; 60 ha)</div>
+                        <div class="leg-pill"><span class="leg-dot dot-high"></span> High Loss (25–60 ha)</div>
+                        <div class="leg-pill"><span class="leg-dot dot-medium"></span> Moderate (5–25 ha)</div>
+                        <div class="leg-pill"><span class="leg-dot dot-low"></span> Minor (&lt; 5 ha)</div>
+                        <div class="leg-pill"><span class="leg-dot dot-resolved"></span> Resolved / Closed</div>
+                        <div class="leg-pill"><span class="leg-ring"></span> Monitored Forest Perimeter</div>
                     </div>
                 </div>
 
-                <!-- Recent Analyses Table -->
-                <div class="card" style="margin-top: 24px;">
-                    <div class="card-header">
-                        <h3>📋 Recent Satellite Analyses</h3>
-                        <button class="btn-sm-outline" id="btn-view-all-reports">View All Reports →</button>
+                <!-- Active Alert & Incident Queue Table -->
+                <div class="card" id="ops-incidents-section" style="margin-top: 24px;">
+                    <div class="card-header" style="flex-wrap: wrap; gap: 12px;">
+                        <div>
+                            <h3>📋 Incident Response & Alert Management Queue</h3>
+                            <span class="card-subtitle">Verified satellite detections requiring administrative review, field assignment, and verification</span>
+                        </div>
+                        <div class="incident-filters-row">
+                            <select id="filter-incident-priority" class="form-control-compact" style="width: auto;">
+                                <option value="all">All Priorities</option>
+                                <option value="Critical">Critical Priority</option>
+                                <option value="High">High Priority</option>
+                                <option value="Medium">Medium Priority</option>
+                                <option value="Low">Low Priority</option>
+                            </select>
+                            <select id="filter-incident-status" class="form-control-compact" style="width: auto;">
+                                <option value="all">All Statuses</option>
+                                <option value="New">Status: New (Unreviewed)</option>
+                                <option value="Assigned">Status: Assigned</option>
+                                <option value="Field Verification">Status: Field Verification</option>
+                                <option value="Resolved">Status: Resolved</option>
+                            </select>
+                            <input type="text" id="filter-incident-search" class="form-control-compact" placeholder="Search ID, Location, Officer..." style="width: 220px;">
+                        </div>
                     </div>
+
                     <div class="table-responsive">
-                        <table class="history-table" id="overview-history-table">
+                        <table class="history-table" id="operations-incidents-table">
                             <thead>
                                 <tr>
-                                    <th>Analysis ID</th>
-                                    <th>Target Coordinates</th>
-                                    <th>Execution Date</th>
-                                    <th>Canopy Loss</th>
-                                    <th>Risk Level</th>
+                                    <th>Incident ID</th>
+                                    <th>Monitored Area</th>
+                                    <th>Detection Category</th>
+                                    <th>Affected Area</th>
+                                    <th>Priority</th>
                                     <th>Status</th>
-                                    <th>Actions</th>
+                                    <th>Assigned Officer & Range</th>
+                                    <th>Observation Date</th>
+                                    <th>Action</th>
                                 </tr>
                             </thead>
-                            <tbody id="overview-history-tbody">
-                                <tr><td colspan="7" style="text-align: center;">Loading analysis history...</td></tr>
+                            <tbody id="operations-incidents-tbody">
+                                <tr><td colspan="9" style="text-align: center; padding: 24px;">Loading operational incident queue...</td></tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
+
+                <!-- Operational Activity & Audit Trail Feed -->
+                <div class="card" style="margin-top: 24px;">
+                    <div class="card-header">
+                        <h3>🛡️ Forest Department Activity & Audit Trail</h3>
+                        <span class="card-subtitle">Immutable chronological log of satellite detections, range officer assignments, and field verification notes</span>
+                    </div>
+                    <div id="operations-audit-feed" class="ops-audit-feed">
+                        <div class="audit-item">Loading operational activity feed...</div>
+                    </div>
+                </div>
+
             </section>
 
 
@@ -582,16 +651,17 @@
                         </div>
 
                         <!-- Floating Map Legend -->
-                        <div class="map-floating-legend">
+                        <div class="map-floating-legend" id="change-map-legend">
                             <div class="legend-header">
-                                <span>Canopy Change Scale</span>
+                                <span id="change-legend-title">Canopy Change Scale</span>
                             </div>
-                            <div class="legend-grid">
+                            <div class="legend-grid" id="change-legend-grid">
                                 <div class="leg-item"><span class="leg-swatch deforested-swatch"></span> <strong>Potential Loss</strong> (ΔNDVI &lt; -0.15)</div>
                                 <div class="leg-item"><span class="leg-swatch stable-dense-swatch"></span> <strong>Dense Forest</strong> (NDVI &gt; 0.60)</div>
                                 <div class="leg-item"><span class="leg-swatch stable-light-swatch"></span> <strong>Light Forest</strong> (0.40–0.60)</div>
                                 <div class="leg-item"><span class="leg-swatch regrowth-swatch"></span> <strong>Canopy Regrowth</strong> (ΔNDVI &gt; +0.15)</div>
                                 <div class="leg-item"><span class="leg-swatch non-forest-swatch"></span> <strong>Non-Forest / Bare</strong> (NDVI &lt; 0.20)</div>
+                                <div class="leg-item"><span class="leg-swatch masked-transparent-swatch"></span> <strong>Masked / Cloud</strong> (Transparent)</div>
                             </div>
                         </div>
                     </div>
@@ -971,6 +1041,163 @@
             </section>
 
         </main>
+
+        <!-- ===============================================================
+             INCIDENT WORKSPACE MODAL & INVESTIGATION DRAWER (Phase 5 & 7)
+             =============================================================== -->
+        <div id="incident-workspace-modal" class="modal-backdrop" style="display: none;">
+            <div class="modal-dialog modal-dialog-lg">
+                <div class="modal-header">
+                    <div>
+                        <div class="badge-row">
+                            <span class="analysis-badge" id="inc-modal-id">INC-2026-100</span>
+                            <span class="badge" id="inc-modal-priority">Critical</span>
+                            <span class="badge" id="inc-modal-status">Assigned</span>
+                        </div>
+                        <h3 id="inc-modal-title" style="margin-top: 6px; font-size: 1.25rem;">Severe Canopy Loss in Western Ghats</h3>
+                    </div>
+                    <button id="inc-modal-close-btn" class="modal-close-btn">&times;</button>
+                </div>
+
+                <div class="modal-body inc-modal-body">
+                    <div class="inc-modal-grid">
+                        
+                        <!-- Left Column: Satellite Evidence & Visuals -->
+                        <div class="inc-modal-col-left">
+                            <h4 class="inc-section-title">🛰️ Satellite Detection Evidence</h4>
+                            <div class="inc-media-container">
+                                <img id="inc-modal-map" class="inc-preview-img" alt="Sentinel-2 4-Panel Map" src="" style="display: none;">
+                                <div id="inc-modal-map-placeholder" class="inc-placeholder-box">
+                                    <span>🛰️</span>
+                                    <p>Loading multi-temporal satellite raster...</p>
+                                </div>
+                            </div>
+
+                            <!-- Detection Key Metrics -->
+                            <div class="inc-metrics-grid">
+                                <div class="inc-metric-card">
+                                    <span class="inc-m-label">Potential Loss</span>
+                                    <strong class="inc-m-val text-danger" id="inc-modal-loss">-- ha</strong>
+                                    <span class="inc-m-sub" id="inc-modal-loss-pct">--%</span>
+                                </div>
+                                <div class="inc-metric-card">
+                                    <span class="inc-m-label">Mean ΔNDVI</span>
+                                    <strong class="inc-m-val text-info" id="inc-modal-dndvi">--</strong>
+                                    <span class="inc-m-sub">Shift in canopy vigor</span>
+                                </div>
+                                <div class="inc-metric-card">
+                                    <span class="inc-m-label">Observation Date</span>
+                                    <strong class="inc-m-val" id="inc-modal-obs-date" style="font-size:0.85rem;">--</strong>
+                                    <span class="inc-m-sub">Copernicus Sentinel-2</span>
+                                </div>
+                                <div class="inc-metric-card">
+                                    <span class="inc-m-label">Data Quality</span>
+                                    <strong class="inc-m-val text-success" id="inc-modal-quality">High Confidence</strong>
+                                    <span class="inc-m-sub">SCL Cloud Filtered</span>
+                                </div>
+                            </div>
+
+                            <!-- Download Incident Exports -->
+                            <div class="inc-export-actions">
+                                <a href="#" id="inc-modal-pdf-btn" class="btn-sm-outline" target="_blank">📄 Download Incident PDF</a>
+                                <a href="#" id="inc-modal-csv-btn" class="btn-sm-outline" target="_blank">📊 Export CSV Data</a>
+                            </div>
+
+                            <div class="scientific-disclaimer-box" style="margin-top: 14px; font-size: 0.76rem;">
+                                <strong>Operational Notice:</strong> Satellite vegetation index loss indicates potential canopy disturbance. Field verification is required to distinguish logging, drought, or clearance from false alarms.
+                            </div>
+                        </div>
+
+                        <!-- Right Column: Operations, Assignment & Field Notes -->
+                        <div class="inc-modal-col-right">
+                            
+                            <!-- 1. Workflow Status Transition -->
+                            <div class="inc-action-card">
+                                <h4>⚖️ Workflow & Lifecycle Status</h4>
+                                <div class="status-action-row">
+                                    <select id="inc-status-select" class="form-control-compact">
+                                        <option value="New">Status: New (Unreviewed)</option>
+                                        <option value="Reviewed">Status: Reviewed</option>
+                                        <option value="Assigned">Status: Assigned</option>
+                                        <option value="Field Verification">Status: Field Verification</option>
+                                        <option value="Resolved">Status: Resolved (Action Complete)</option>
+                                        <option value="False Positive">Status: False Positive (Phenological / Agricultural)</option>
+                                        <option value="Insufficient Evidence">Status: Insufficient Evidence</option>
+                                    </select>
+                                    <button id="btn-update-inc-status" class="btn-solid-green">Update</button>
+                                </div>
+                                <input type="text" id="inc-status-notes" class="form-control-compact" placeholder="Supervisor note for status update..." style="margin-top: 6px;">
+                            </div>
+
+                            <!-- 2. Officer & Range Assignment -->
+                            <div class="inc-action-card">
+                                <h4>👮 Officer & Range Assignment</h4>
+                                <div class="assign-form-grid">
+                                    <div>
+                                        <label class="form-micro-label">Assigned Officer:</label>
+                                        <input type="text" id="inc-assign-officer" class="form-control-compact" placeholder="e.g. Range Officer Rajesh Kumar">
+                                    </div>
+                                    <div>
+                                        <label class="form-micro-label">Range / Beat:</label>
+                                        <input type="text" id="inc-assign-range" class="form-control-compact" placeholder="e.g. Northern Range Division">
+                                    </div>
+                                </div>
+                                <button id="btn-update-inc-assign" class="btn-solid-green" style="margin-top: 8px; width: 100%;">Reassign Officer & Deploy</button>
+                            </div>
+
+                            <!-- 3. Field Investigation Notes -->
+                            <div class="inc-action-card">
+                                <h4>📝 Field Investigation Observations</h4>
+                                <div id="inc-modal-notes-list" class="inc-notes-stream">
+                                    <p class="empty-note">No field notes recorded yet.</p>
+                                </div>
+
+                                <div class="add-note-form" style="margin-top: 10px;">
+                                    <input type="text" id="inc-new-note-author" class="form-control-compact" placeholder="Your Name / Title (e.g. Beat Officer S. Patil)" style="margin-bottom: 6px;">
+                                    <textarea id="inc-new-note-text" class="form-control-compact" rows="2" placeholder="Record ground-truthing observations, stump counts, fire evidence..."></textarea>
+                                    <button id="btn-add-inc-note" class="btn-outline-green" style="margin-top: 6px; width: 100%;">+ Submit Field Observation</button>
+                                </div>
+
+                                <!-- Ground-Truthing Photograph Upload Form -->
+                                <div class="photo-upload-form" style="margin-top: 14px; padding: 10px; background: rgba(16, 185, 129, 0.05); border: 1px dashed rgba(16, 185, 129, 0.35); border-radius: 6px;">
+                                    <div style="font-size: 0.76rem; font-weight: 700; color: #10b981; margin-bottom: 6px;">
+                                        📷 Attach Ground-Truthing Photographic Evidence
+                                    </div>
+                                    <input type="file" id="inc-upload-file" accept="image/png, image/jpeg, image/webp" class="form-control-compact" style="margin-bottom: 6px;">
+                                    <input type="text" id="inc-upload-caption" class="form-control-compact" placeholder="Photo caption (e.g., Tree stump count or fire scorch)" style="margin-bottom: 6px;">
+                                    <button id="btn-upload-inc-photo" class="btn-solid-green" style="width: 100%; font-size: 0.78rem; padding: 6px;">Upload & Link Photo 📸</button>
+                                </div>
+                            </div>
+
+                            <!-- 4. Activity Audit Trail -->
+                            <div class="inc-action-card">
+                                <h4>🛡️ Audit Trail & History</h4>
+                                <div id="inc-modal-audit-list" class="inc-audit-stream"></div>
+                            </div>
+
+                            <!-- 5. Notification & Alert Logs -->
+                            <div class="inc-action-card">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                    <h4>🚨 Multi-Channel Alert Logs</h4>
+                                    <span class="badge badge-yellow" id="inc-modal-test-mode-badge" style="font-size: 0.68rem;">TEST MODE (Simulated)</span>
+                                </div>
+                                <div id="inc-modal-notifications-list" class="inc-audit-stream">
+                                    <div class="audit-row"><span class="audit-text">No alert notifications logged for this incident yet.</span></div>
+                                </div>
+                                <button id="btn-dispatch-test-notif" class="btn-sm-outline" style="margin-top: 8px; width: 100%; font-size: 0.74rem;">🔔 Dispatch Test Alert Notification (Safe Mode)</button>
+                            </div>
+
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="modal-footer" style="justify-content: space-between;">
+                    <button id="btn-inc-open-change" class="btn-outline-green">🔬 Open in Change Detection Workspace →</button>
+                    <button id="inc-modal-done-btn" class="btn-solid-green">Close Workspace</button>
+                </div>
+            </div>
+        </div>
 
         <!-- Save Location Modal Dialog -->
         <div id="save-location-modal" class="modal-backdrop" style="display: none;">

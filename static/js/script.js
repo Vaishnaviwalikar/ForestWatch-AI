@@ -48,6 +48,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (targetId === "overview") {
             if (overviewMap) setTimeout(() => overviewMap.invalidateSize(), 250);
             loadOverviewMetrics();
+            loadOperationsDashboard();
         }
         if (targetId === "change") {
             initChangeMap();
@@ -69,32 +70,43 @@ document.addEventListener("DOMContentLoaded", function () {
         link.addEventListener("click", () => switchWorkspace(link.getAttribute("data-nav")));
     });
 
-    document.getElementById("brand-home-btn").addEventListener("click", () => switchWorkspace("overview"));
-    document.getElementById("btn-quick-change-loc").addEventListener("click", () => switchWorkspace("explorer"));
-    document.getElementById("btn-hero-explore").addEventListener("click", () => switchWorkspace("explorer"));
-    document.getElementById("btn-hero-change").addEventListener("click", () => switchWorkspace("change"));
-    document.getElementById("btn-hero-historical").addEventListener("click", () => switchWorkspace("historical"));
-    document.getElementById("btn-view-all-reports").addEventListener("click", () => switchWorkspace("reports"));
+    document.getElementById("brand-home-btn")?.addEventListener("click", () => switchWorkspace("overview"));
+    document.getElementById("btn-quick-change-loc")?.addEventListener("click", () => switchWorkspace("explorer"));
+    document.getElementById("btn-hero-explore")?.addEventListener("click", () => switchWorkspace("explorer"));
+    document.getElementById("btn-hero-change")?.addEventListener("click", () => switchWorkspace("change"));
+    document.getElementById("btn-hero-historical")?.addEventListener("click", () => switchWorkspace("historical"));
+    document.getElementById("btn-view-all-reports")?.addEventListener("click", () => switchWorkspace("reports"));
 
-    // Quick action tiles in Overview
-    document.getElementById("qa-explorer").addEventListener("click", () => switchWorkspace("explorer"));
-    document.getElementById("qa-vegetation").addEventListener("click", () => switchWorkspace("vegetation"));
-    document.getElementById("qa-change").addEventListener("click", () => switchWorkspace("change"));
-    document.getElementById("qa-historical").addEventListener("click", () => switchWorkspace("historical"));
+    // Quick action tiles in Overview (if present)
+    document.getElementById("qa-explorer")?.addEventListener("click", () => switchWorkspace("explorer"));
+    document.getElementById("qa-vegetation")?.addEventListener("click", () => switchWorkspace("vegetation"));
+    document.getElementById("qa-change")?.addEventListener("click", () => switchWorkspace("change"));
+    document.getElementById("qa-historical")?.addEventListener("click", () => switchWorkspace("historical"));
 
     function updateActiveLocationDisplay() {
-        document.getElementById("active-location-name").textContent = state.name;
-        document.getElementById("active-location-coords").textContent = `${state.lat.toFixed(4)}° N, ${state.lon.toFixed(4)}° E`;
-        const ha = (Math.PI * state.radius * state.radius / 10000).toFixed(0);
-        document.getElementById("active-location-area").textContent = `Radius: ${state.radius.toLocaleString()}m (~${ha} ha)`;
+        const nameEl = document.getElementById("active-location-name");
+        if (nameEl) nameEl.textContent = state.name;
 
-        // Sync inputs across workspaces
-        document.getElementById("veg-lat").value = state.lat.toFixed(4);
-        document.getElementById("veg-lon").value = state.lon.toFixed(4);
-        document.getElementById("change-lat").value = state.lat.toFixed(4);
-        document.getElementById("change-lon").value = state.lon.toFixed(4);
-        document.getElementById("hist-lat").value = state.lat.toFixed(4);
-        document.getElementById("hist-lon").value = state.lon.toFixed(4);
+        const coordsEl = document.getElementById("active-location-coords");
+        if (coordsEl) coordsEl.textContent = `${state.lat.toFixed(4)}° N, ${state.lon.toFixed(4)}° E`;
+
+        const ha = (Math.PI * state.radius * state.radius / 10000).toFixed(0);
+        const areaEl = document.getElementById("active-location-area");
+        if (areaEl) areaEl.textContent = `Radius: ${state.radius.toLocaleString()}m (~${ha} ha)`;
+
+        // Sync inputs across workspaces safely
+        const vegLat = document.getElementById("veg-lat");
+        if (vegLat) vegLat.value = state.lat.toFixed(4);
+        const vegLon = document.getElementById("veg-lon");
+        if (vegLon) vegLon.value = state.lon.toFixed(4);
+        const changeLat = document.getElementById("change-lat");
+        if (changeLat) changeLat.value = state.lat.toFixed(4);
+        const changeLon = document.getElementById("change-lon");
+        if (changeLon) changeLon.value = state.lon.toFixed(4);
+        const histLat = document.getElementById("hist-lat");
+        if (histLat) histLat.value = state.lat.toFixed(4);
+        const histLon = document.getElementById("hist-lon");
+        if (histLon) histLon.value = state.lon.toFixed(4);
     }
 
     // =========================================================================
@@ -342,7 +354,43 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     let overviewMap = null;
-    let overviewMarkersLayer = null;
+    let overviewReservesLayer = null;
+    let overviewIncidentsLayer = null;
+    let operationalIncidents = [];
+    let operationalReserves = [];
+    let activeMapFilter = 'all';
+    let currentIncidentId = null;
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    function getPriorityBadgeClass(priority) {
+        if (!priority) return 'badge-gray';
+        const p = priority.toLowerCase();
+        if (p === 'critical') return 'badge-danger';
+        if (p === 'high') return 'badge-danger';
+        if (p === 'medium') return 'badge-yellow';
+        if (p === 'low') return 'badge-green';
+        return 'badge-gray';
+    }
+
+    function getStatusBadgeClass(status) {
+        if (!status) return 'badge-gray';
+        const s = status.toLowerCase();
+        if (s === 'new') return 'badge-danger';
+        if (s === 'reviewed') return 'badge-yellow';
+        if (s === 'assigned' || s.includes('investigation') || s.includes('field')) return 'badge-blue';
+        if (s === 'resolved') return 'badge-green';
+        if (s.includes('false') || s.includes('insufficient')) return 'badge-gray';
+        return 'badge-gray';
+    }
 
     function initOverviewMap(locations) {
         const container = document.getElementById("overview-map");
@@ -350,30 +398,599 @@ document.addEventListener("DOMContentLoaded", function () {
 
         if (!overviewMap) {
             overviewMap = L.map('overview-map', {
-                center: [20.0, 78.0],
-                zoom: 4,
-                layers: [L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')]
+                center: [20.5937, 78.9629],
+                zoom: 5,
+                layers: [
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        maxZoom: 18,
+                        attribution: '&copy; OpenStreetMap contributors | Copernicus Sentinel-2'
+                    })
+                ]
             });
-            overviewMarkersLayer = L.layerGroup().addTo(overviewMap);
-        } else if (overviewMarkersLayer) {
-            overviewMarkersLayer.clearLayers();
+            overviewReservesLayer = L.layerGroup().addTo(overviewMap);
+            overviewIncidentsLayer = L.layerGroup().addTo(overviewMap);
         }
 
-        // Add markers for all saved locations
-        locations.forEach(loc => {
-            const m = L.marker([loc.latitude, loc.longitude]);
-            m.bindPopup(`
-                <strong>${loc.name}</strong><br>
-                ${loc.region}<br>
-                <button class="btn-sm-outline" style="margin-top:6px;" onclick="window.selectAndGo(${loc.latitude}, ${loc.longitude}, '${loc.name}')">Launch Analysis</button>
-            `);
-            overviewMarkersLayer.addLayer(m);
-        });
+        if (locations && locations.length > 0) {
+            operationalReserves = locations;
+        }
+
+        renderOperationsMapLayers();
 
         setTimeout(() => {
             if (overviewMap) overviewMap.invalidateSize();
         }, 300);
     }
+
+    function renderOperationsMapLayers() {
+        if (!overviewMap || !overviewReservesLayer || !overviewIncidentsLayer) return;
+
+        overviewReservesLayer.clearLayers();
+        overviewIncidentsLayer.clearLayers();
+
+        // 1. Render Monitored Reserves Boundaries (Green circles)
+        if (operationalReserves && operationalReserves.length > 0) {
+            operationalReserves.forEach(loc => {
+                const rad = loc.radius_meters || 5000;
+                const circle = L.circle([loc.latitude, loc.longitude], {
+                    radius: rad,
+                    color: '#10b981',
+                    fillColor: '#10b981',
+                    fillOpacity: 0.12,
+                    weight: 2,
+                    dashArray: '5, 5'
+                });
+
+                circle.bindPopup(`
+                    <div style="font-family: inherit; font-size: 13px; min-width: 180px;">
+                        <strong style="color: #065f46; font-size: 14px;">🌲 ${escapeHtml(loc.name)}</strong><br>
+                        <span style="color: #64748b; font-size: 12px;">${escapeHtml(loc.region || 'Forest Reserve')}</span>
+                        <div style="margin-top: 4px; font-size: 11px; color: #475569;">
+                            Perimeter: ${(rad / 1000).toFixed(1)} km radius<br>
+                            Coordinates: ${loc.latitude.toFixed(3)}° N, ${loc.longitude.toFixed(3)}° E
+                        </div>
+                        <div style="margin-top: 8px;">
+                            <button class="btn-sm-outline" style="width: 100%; cursor: pointer;" onclick="window.selectAndGo(${loc.latitude}, ${loc.longitude}, '${escapeHtml(loc.name)}')">Launch Sentinel Scan 🛰️</button>
+                        </div>
+                    </div>
+                `);
+                overviewReservesLayer.addLayer(circle);
+            });
+        }
+
+        // 2. Render Incident Markers according to activeMapFilter
+        let visibleCount = 0;
+        if (activeMapFilter !== 'reserves' && operationalIncidents && operationalIncidents.length > 0) {
+            operationalIncidents.forEach(inc => {
+                // Apply activeMapFilter
+                if (activeMapFilter === 'priority' && inc.priority !== 'Critical' && inc.priority !== 'High') {
+                    return;
+                }
+                if (activeMapFilter === 'active' && (inc.status === 'Resolved' || inc.status === 'False Positive')) {
+                    return;
+                }
+
+                visibleCount++;
+                let markerColor = '#10b981';
+                let markerRadius = 9;
+
+                if (inc.status === 'Resolved' || inc.status === 'False Positive') {
+                    markerColor = '#64748b';
+                    markerRadius = 8;
+                } else if (inc.priority === 'Critical') {
+                    markerColor = '#ef4444';
+                    markerRadius = 14;
+                } else if (inc.priority === 'High') {
+                    markerColor = '#f97316';
+                    markerRadius = 12;
+                } else if (inc.priority === 'Medium') {
+                    markerColor = '#eab308';
+                    markerRadius = 10;
+                }
+
+                const marker = L.circleMarker([inc.latitude, inc.longitude], {
+                    radius: markerRadius,
+                    fillColor: markerColor,
+                    color: '#ffffff',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.85
+                });
+
+                marker.bindPopup(`
+                    <div style="font-family: inherit; min-width: 210px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <strong style="font-size: 13px; color: #0f172a;">${escapeHtml(inc.id)}</strong>
+                            <span class="badge ${getPriorityBadgeClass(inc.priority)}" style="font-size: 10px;">${escapeHtml(inc.priority)}</span>
+                        </div>
+                        <div style="font-weight: 600; color: #1e293b; margin-bottom: 4px; font-size: 12px;">${escapeHtml(inc.title)}</div>
+                        <div style="font-size: 11px; color: #475569; margin-bottom: 8px; line-height: 1.4;">
+                            📍 <strong>${escapeHtml(inc.location_name)}</strong><br>
+                            📉 Potential Loss: <strong style="color: #dc2626;">${inc.affected_ha} ha</strong> (${inc.affected_pct}%)<br>
+                            👮 Officer: ${escapeHtml(inc.assigned_officer || 'Unassigned')}<br>
+                            ⚖️ Status: <span class="badge ${getStatusBadgeClass(inc.status)}" style="font-size: 9px; padding: 1px 4px;">${escapeHtml(inc.status)}</span>
+                        </div>
+                        <button class="btn-solid-green" style="width: 100%; font-size: 11px; padding: 5px 8px; cursor: pointer;" onclick="window.openIncidentWorkspace('${escapeHtml(inc.id)}')">
+                            Investigate Incident 🔍
+                        </button>
+                    </div>
+                `);
+
+                overviewIncidentsLayer.addLayer(marker);
+            });
+        }
+
+        const countBadge = document.getElementById("ops-map-marker-count");
+        if (countBadge) {
+            if (activeMapFilter === 'reserves') {
+                countBadge.textContent = `Showing ${operationalReserves.length} Reserves`;
+            } else {
+                countBadge.textContent = `Showing ${visibleCount} Incident Pin${visibleCount !== 1 ? 's' : ''}`;
+            }
+        }
+    }
+
+    function renderIncidentTable() {
+        const tbody = document.getElementById("operations-incidents-tbody");
+        if (!tbody) return;
+
+        const priorityFilter = document.getElementById("filter-incident-priority")?.value || "all";
+        const statusFilter = document.getElementById("filter-incident-status")?.value || "all";
+        const searchFilter = (document.getElementById("filter-incident-search")?.value || "").toLowerCase().trim();
+
+        const filtered = operationalIncidents.filter(inc => {
+            if (priorityFilter !== "all" && inc.priority !== priorityFilter) return false;
+            if (statusFilter !== "all" && inc.status !== statusFilter) return false;
+            if (searchFilter) {
+                const combined = `${inc.id} ${inc.title} ${inc.location_name} ${inc.assigned_officer || ''} ${inc.range_division || ''}`.toLowerCase();
+                if (!combined.includes(searchFilter)) return false;
+            }
+            return true;
+        });
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 24px; color: #94a3b8;">No incidents match the active filters.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = filtered.map(inc => `
+            <tr>
+                <td><code>${escapeHtml(inc.id)}</code></td>
+                <td>
+                    <strong>${escapeHtml(inc.location_name)}</strong>
+                    <div style="font-size: 0.74rem; color: #64748b;">${inc.latitude.toFixed(4)}° N, ${inc.longitude.toFixed(4)}° E</div>
+                </td>
+                <td><span style="font-size: 0.82rem;">${escapeHtml(inc.detection_type || 'Potential Canopy Loss')}</span></td>
+                <td>
+                    <strong style="color: ${inc.affected_ha >= 25 ? '#dc2626' : '#d97706'}; font-size: 0.92rem;">${inc.affected_ha} ha</strong>
+                    <div style="font-size: 0.74rem; color: #64748b;">(${inc.affected_pct}% cover)</div>
+                </td>
+                <td><span class="badge ${getPriorityBadgeClass(inc.priority)}">${escapeHtml(inc.priority)}</span></td>
+                <td><span class="badge ${getStatusBadgeClass(inc.status)}">${escapeHtml(inc.status)}</span></td>
+                <td>
+                    <div style="font-weight: 500;">${escapeHtml(inc.assigned_officer || 'Unassigned')}</div>
+                    <div style="font-size: 0.74rem; color: #64748b;">${escapeHtml(inc.range_division || 'No Range')}</div>
+                </td>
+                <td style="font-size: 0.78rem;">${escapeHtml(inc.observation_date || 'Recent S2')}</td>
+                <td>
+                    <button class="btn-sm-outline" style="cursor: pointer;" onclick="window.openIncidentWorkspace('${escapeHtml(inc.id)}')">Investigate 🔍</button>
+                </td>
+            </tr>
+        `).join("");
+    }
+
+    function renderOperationsAuditFeed() {
+        const feed = document.getElementById("operations-audit-feed");
+        if (!feed) return;
+
+        let allLogs = [];
+        operationalIncidents.forEach(inc => {
+            if (inc.activity_log && Array.isArray(inc.activity_log)) {
+                inc.activity_log.forEach(item => {
+                    allLogs.push({
+                        ...item,
+                        incident_id: inc.id,
+                        location: inc.location_name
+                    });
+                });
+            }
+        });
+
+        allLogs.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
+
+        if (allLogs.length === 0) {
+            feed.innerHTML = `<div class="audit-item" style="color: #94a3b8; padding: 12px;">No operational activity logged yet.</div>`;
+            return;
+        }
+
+        feed.innerHTML = allLogs.slice(0, 8).map(log => `
+            <div class="audit-item">
+                <div class="audit-time">${escapeHtml(log.timestamp || 'Recent')}</div>
+                <div class="audit-details">
+                    <strong style="color: #065f46;">[${escapeHtml(log.incident_id)}] ${escapeHtml(log.action)}</strong>: ${escapeHtml(log.details)}
+                    <span class="audit-user">&bull; Authorized Officer: <em>${escapeHtml(log.user || 'System')}</em></span>
+                </div>
+            </div>
+        `).join("");
+    }
+
+    function loadOperationsDashboard() {
+        fetch("/api/operations/summary")
+            .then(res => res.json())
+            .then(summary => {
+                const unresEl = document.getElementById("ops-unresolved-alerts");
+                if (unresEl) unresEl.textContent = summary.unresolved_alerts ?? "--";
+                
+                const priEl = document.getElementById("ops-priority-cases");
+                if (priEl) priEl.textContent = summary.priority_cases ?? "--";
+
+                const invEl = document.getElementById("ops-investigations");
+                if (invEl) invEl.textContent = summary.ongoing_investigations ?? "--";
+
+                const resEl = document.getElementById("ops-monitored-reserves");
+                if (resEl) resEl.textContent = summary.monitored_reserves ?? "6";
+
+                const obsEl = document.getElementById("ops-latest-obs");
+                if (obsEl) obsEl.textContent = summary.latest_observation || "Recent Pass";
+
+                const btnCount = document.getElementById("ops-btn-alert-count");
+                if (btnCount) btnCount.textContent = summary.unresolved_alerts ?? "--";
+            })
+            .catch(err => console.error("Error loading operations summary:", err));
+
+        fetch("/api/incidents")
+            .then(res => res.json())
+            .then(data => {
+                operationalIncidents = data.incidents || [];
+                renderIncidentTable();
+                renderOperationsAuditFeed();
+                renderOperationsMapLayers();
+            })
+            .catch(err => console.error("Error loading incidents:", err));
+    }
+
+    window.openIncidentWorkspace = function (incidentId) {
+        currentIncidentId = incidentId;
+        const modal = document.getElementById("incident-workspace-modal");
+        if (!modal) return;
+
+        fetch(`/api/incidents/${incidentId}`)
+            .then(res => res.json())
+            .then(inc => {
+                if (inc.error) return alert("Incident not found: " + inc.error);
+
+                document.getElementById("inc-modal-id").textContent = inc.id;
+                
+                const priBadge = document.getElementById("inc-modal-priority");
+                priBadge.textContent = inc.priority;
+                priBadge.className = `badge ${getPriorityBadgeClass(inc.priority)}`;
+
+                const stBadge = document.getElementById("inc-modal-status");
+                stBadge.textContent = inc.status;
+                stBadge.className = `badge ${getStatusBadgeClass(inc.status)}`;
+
+                document.getElementById("inc-modal-title").textContent = inc.title;
+                document.getElementById("inc-modal-loss").textContent = `${inc.affected_ha} ha`;
+                document.getElementById("inc-modal-loss-pct").textContent = `${inc.affected_pct}% cover`;
+                document.getElementById("inc-modal-dndvi").textContent = (inc.mean_dndvi !== undefined && inc.mean_dndvi !== null) ? inc.mean_dndvi : "-0.24";
+                document.getElementById("inc-modal-obs-date").textContent = inc.observation_date || "Recent S2 Pass";
+                document.getElementById("inc-modal-quality").textContent = inc.quality_flags || "SCL Filtered (High)";
+
+                const imgEl = document.getElementById("inc-modal-map");
+                const phEl = document.getElementById("inc-modal-map-placeholder");
+                if (inc.map_url) {
+                    imgEl.src = inc.map_url;
+                    imgEl.style.display = "block";
+                    if (phEl) phEl.style.display = "none";
+                } else {
+                    imgEl.style.display = "none";
+                    if (phEl) phEl.style.display = "flex";
+                }
+
+                const pdfBtn = document.getElementById("inc-modal-pdf-btn");
+                if (pdfBtn) pdfBtn.href = inc.pdf_url || (inc.analysis_id ? `/export/pdf/${inc.analysis_id}` : "#");
+
+                const csvBtn = document.getElementById("inc-modal-csv-btn");
+                if (csvBtn) csvBtn.href = inc.csv_url || (inc.analysis_id ? `/export/csv/${inc.analysis_id}` : "#");
+
+                const statusSelect = document.getElementById("inc-status-select");
+                if (statusSelect) statusSelect.value = inc.status;
+
+                const statusNote = document.getElementById("inc-status-notes") || document.getElementById("inc-status-note");
+                if (statusNote) statusNote.value = "";
+
+                const officerInput = document.getElementById("inc-assign-officer");
+                if (officerInput) officerInput.value = inc.assigned_officer || "";
+
+                const rangeInput = document.getElementById("inc-assign-range");
+                if (rangeInput) rangeInput.value = inc.range_division || "";
+
+                renderIncidentModalNotes(inc.field_notes);
+                renderIncidentModalAudit(inc.activity_log);
+                renderIncidentModalNotifications(incidentId);
+
+                modal.style.display = "flex";
+            })
+            .catch(err => {
+                console.error("Failed to fetch incident details:", err);
+                alert("Failed to load incident record.");
+            });
+    };
+
+    function renderIncidentModalNotes(notes) {
+        const stream = document.getElementById("inc-modal-notes-list");
+        if (!stream) return;
+        if (!notes || notes.length === 0) {
+            stream.innerHTML = `<p class="empty-note">No field verification notes recorded yet.</p>`;
+            return;
+        }
+        stream.innerHTML = notes.map(n => `
+            <div class="note-card">
+                <div class="note-meta">
+                    <strong>${escapeHtml(n.author || 'Field Officer')}</strong> &bull; 
+                    <span style="color: #64748b;">${escapeHtml(n.timestamp || 'Recorded')}</span>
+                </div>
+                <div class="note-text">${escapeHtml(n.text)}</div>
+                ${n.photo_url ? `
+                    <div class="note-photo-preview">
+                        <a href="${escapeHtml(n.photo_url)}" target="_blank" title="Click to inspect ground photographic evidence in new tab">
+                            <img src="${escapeHtml(n.photo_url)}" class="note-photo-thumb" alt="Field Photo Evidence">
+                        </a>
+                    </div>
+                ` : ''}
+            </div>
+        `).join("");
+    }
+
+    function renderIncidentModalNotifications(incidentId) {
+        const list = document.getElementById("inc-modal-notifications-list");
+        if (!list) return;
+
+        fetch(`/api/notifications?incident_id=${incidentId}`)
+            .then(res => res.json())
+            .then(data => {
+                const logs = data.notifications || [];
+                const badge = document.getElementById("inc-modal-test-mode-badge");
+                if (badge) {
+                    badge.textContent = data.test_mode ? "TEST MODE (Simulated)" : "LIVE DISPATCH";
+                    badge.className = data.test_mode ? "badge badge-yellow" : "badge badge-green";
+                }
+
+                if (logs.length === 0) {
+                    list.innerHTML = `<div class="audit-row"><span class="audit-text">No alert notifications logged for this incident yet.</span></div>`;
+                    return;
+                }
+
+                list.innerHTML = logs.map(l => `
+                    <div class="audit-row" style="font-size: 0.74rem;">
+                        <span class="audit-time">${escapeHtml(l.timestamp)}</span>
+                        <span class="audit-text">
+                            <strong>[${escapeHtml(l.channel).toUpperCase()}]</strong>
+                            To: <em>${escapeHtml(l.recipient_name)} (${escapeHtml(l.recipient_role)})</em> &bull;
+                            <span class="badge ${l.status === 'simulated' ? 'badge-yellow' : 'badge-green'}" style="font-size: 8px; padding: 1px 4px;">${escapeHtml(l.status)}</span>
+                            <div style="color: #94a3b8; font-size: 0.7rem; margin-top: 2px;">${escapeHtml(l.details || l.subject)}</div>
+                        </span>
+                    </div>
+                `).join("");
+            })
+            .catch(() => {
+                list.innerHTML = `<div class="audit-row"><span class="audit-text">Failed to load notification logs.</span></div>`;
+            });
+    }
+
+    function renderIncidentModalAudit(logs) {
+        const stream = document.getElementById("inc-modal-audit-list");
+        if (!stream) return;
+        if (!logs || logs.length === 0) {
+            stream.innerHTML = `<div class="audit-row"><span class="audit-text">No audit history recorded.</span></div>`;
+            return;
+        }
+        stream.innerHTML = logs.map(a => `
+            <div class="audit-row">
+                <span class="audit-time">${escapeHtml(a.timestamp || '')}</span>
+                <span class="audit-text"><strong>${escapeHtml(a.action)}</strong>: ${escapeHtml(a.details)} <em>(${escapeHtml(a.user || 'System')})</em></span>
+            </div>
+        `).join("");
+    }
+
+    // Modal Action Listeners
+    const incModal = document.getElementById("incident-workspace-modal");
+    document.getElementById("inc-modal-close-btn")?.addEventListener("click", () => {
+        if (incModal) incModal.style.display = "none";
+    });
+    document.getElementById("inc-modal-done-btn")?.addEventListener("click", () => {
+        if (incModal) incModal.style.display = "none";
+    });
+
+    document.getElementById("btn-update-inc-status")?.addEventListener("click", () => {
+        if (!currentIncidentId) return;
+        const statusVal = document.getElementById("inc-status-select")?.value;
+        const noteEl = document.getElementById("inc-status-notes") || document.getElementById("inc-status-note");
+        const noteVal = noteEl ? noteEl.value.trim() : "";
+
+        fetch(`/api/incidents/${currentIncidentId}/status`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                status: statusVal,
+                note: noteVal,
+                user: "Range Officer (Command Center)"
+            })
+        })
+        .then(res => res.json())
+        .then(updated => {
+            if (updated.error) return alert("Failed to update status: " + updated.error);
+            window.openIncidentWorkspace(currentIncidentId);
+            loadOperationsDashboard();
+        })
+        .catch(err => alert("Error updating incident status: " + err));
+    });
+
+    document.getElementById("btn-update-inc-assign")?.addEventListener("click", () => {
+        if (!currentIncidentId) return;
+        const officerVal = document.getElementById("inc-assign-officer").value.trim();
+        const rangeVal = document.getElementById("inc-assign-range").value.trim();
+
+        if (!officerVal) return alert("Please specify an officer name to assign.");
+
+        fetch(`/api/incidents/${currentIncidentId}/assign`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                officer: officerVal,
+                range: rangeVal,
+                user: "Divisional Forest Officer"
+            })
+        })
+        .then(res => res.json())
+        .then(updated => {
+            if (updated.error) return alert("Failed to assign officer: " + updated.error);
+            window.openIncidentWorkspace(currentIncidentId);
+            loadOperationsDashboard();
+        })
+        .catch(err => alert("Error updating assignment: " + err));
+    });
+
+    document.getElementById("btn-add-inc-note")?.addEventListener("click", () => {
+        if (!currentIncidentId) return;
+        const authorVal = document.getElementById("inc-new-note-author").value.trim() || "Field Officer";
+        const textVal = document.getElementById("inc-new-note-text").value.trim();
+
+        if (!textVal) return alert("Please enter a note before submitting.");
+
+        fetch(`/api/incidents/${currentIncidentId}/notes`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                author: authorVal,
+                text: textVal
+            })
+        })
+        .then(res => res.json())
+        .then(updated => {
+            if (updated.error) return alert("Failed to add note: " + updated.error);
+            document.getElementById("inc-new-note-text").value = "";
+            renderIncidentModalNotes(updated.field_notes);
+            renderIncidentModalAudit(updated.activity_log);
+            renderIncidentModalNotifications(currentIncidentId);
+            loadOperationsDashboard();
+        })
+        .catch(err => alert("Error adding note: " + err));
+    });
+
+    // Ground Photo Evidence Upload
+    document.getElementById("btn-upload-inc-photo")?.addEventListener("click", () => {
+        if (!currentIncidentId) return;
+        const fileInput = document.getElementById("inc-upload-file");
+        const captionInput = document.getElementById("inc-upload-caption");
+
+        if (!fileInput.files || fileInput.files.length === 0) {
+            return alert("Please select a photographic file (.jpg, .png, .webp) before uploading.");
+        }
+
+        const formData = new FormData();
+        formData.append("photo", fileInput.files[0]);
+        formData.append("caption", captionInput.value.trim() || "Ground-truthing photographic evidence");
+
+        const btn = document.getElementById("btn-upload-inc-photo");
+        const origText = btn.textContent;
+        btn.textContent = "Uploading Photographic Evidence...";
+        btn.disabled = true;
+
+        fetch(`/api/incidents/${currentIncidentId}/upload-photo`, {
+            method: "POST",
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            btn.textContent = origText;
+            btn.disabled = false;
+            if (data.error) return alert("Upload failed: " + data.error);
+
+            fileInput.value = "";
+            captionInput.value = "";
+            renderIncidentModalNotes(data.incident?.field_notes || data.field_notes);
+            renderIncidentModalAudit(data.incident?.activity_log || data.activity_log);
+            renderIncidentModalNotifications(currentIncidentId);
+            loadOperationsDashboard();
+        })
+        .catch(err => {
+            btn.textContent = origText;
+            btn.disabled = false;
+            alert("Error uploading evidence photo: " + err);
+        });
+    });
+
+    // Test Notification Dispatch
+    document.getElementById("btn-dispatch-test-notif")?.addEventListener("click", () => {
+        if (!currentIncidentId) return;
+        fetch("/api/notifications/test", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ incident_id: currentIncidentId })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) return alert("Notification test failed: " + data.error);
+            renderIncidentModalNotifications(currentIncidentId);
+            loadOperationsDashboard();
+            alert("Safe Test-Mode notification dispatched. Inspect logs below.");
+        })
+        .catch(err => alert("Error dispatching test notification: " + err));
+    });
+
+    document.getElementById("btn-inc-open-change")?.addEventListener("click", () => {
+        if (!currentIncidentId) return;
+        const inc = operationalIncidents.find(i => i.id === currentIncidentId);
+        if (inc) {
+            state.lat = inc.latitude;
+            state.lon = inc.longitude;
+            state.name = inc.location_name;
+            updateActiveLocationDisplay();
+            if (incModal) incModal.style.display = "none";
+            switchWorkspace("change");
+            if (inc.analysis_id) {
+                window.viewPastRun(inc.analysis_id);
+            }
+        }
+    });
+
+    // Map Filter Buttons
+    const mapFilterBtns = [
+        { id: "btn-opsfilter-all", filter: "all" },
+        { id: "btn-opsfilter-priority", filter: "priority" },
+        { id: "btn-opsfilter-active", filter: "active" },
+        { id: "btn-opsfilter-reserves", filter: "reserves" }
+    ];
+
+    mapFilterBtns.forEach(btnObj => {
+        const btn = document.getElementById(btnObj.id);
+        if (btn) {
+            btn.addEventListener("click", () => {
+                mapFilterBtns.forEach(b => {
+                    const el = document.getElementById(b.id);
+                    if (el) el.classList.remove("active");
+                });
+                btn.classList.add("active");
+                activeMapFilter = btnObj.filter;
+                renderOperationsMapLayers();
+            });
+        }
+    });
+
+    // Table Filters
+    document.getElementById("filter-incident-priority")?.addEventListener("change", renderIncidentTable);
+    document.getElementById("filter-incident-status")?.addEventListener("change", renderIncidentTable);
+    document.getElementById("filter-incident-search")?.addEventListener("input", renderIncidentTable);
+
+    // Operations Header Buttons
+    document.getElementById("btn-ops-scroll-alerts")?.addEventListener("click", () => {
+        const section = document.getElementById("ops-incidents-section");
+        if (section) section.scrollIntoView({ behavior: "smooth" });
+    });
+    document.getElementById("btn-ops-launch-change")?.addEventListener("click", () => {
+        switchWorkspace("change");
+    });
 
     window.selectAndGo = function (lat, lon, name) {
         state.lat = lat;
@@ -388,19 +1005,20 @@ document.addEventListener("DOMContentLoaded", function () {
         .then(res => res.json())
         .then(data => {
             const locs = data.locations || [];
-            document.getElementById("stat-total-locations").textContent = locs.length;
+            const countEl = document.getElementById("stat-total-locations");
+            if (countEl) countEl.textContent = locs.length;
 
             const grid = document.getElementById("saved-locations-list");
             if (grid) {
                 grid.innerHTML = locs.map(loc => `
                     <div class="saved-loc-card">
                         <div class="loc-card-header">
-                            <strong class="loc-card-title">${loc.name}</strong>
-                            <span class="loc-card-badge">${loc.region}</span>
+                            <strong class="loc-card-title">${escapeHtml(loc.name)}</strong>
+                            <span class="loc-card-badge">${escapeHtml(loc.region)}</span>
                         </div>
                         <div class="loc-card-coords">${loc.latitude}° N, ${loc.longitude}° E</div>
-                        <div class="loc-card-desc">${loc.description || loc.notes || ''}</div>
-                        <button class="btn-load-loc" onclick="window.selectAndGo(${loc.latitude}, ${loc.longitude}, '${loc.name}')">Select Area</button>
+                        <div class="loc-card-desc">${escapeHtml(loc.description || loc.notes || '')}</div>
+                        <button class="btn-load-loc" onclick="window.selectAndGo(${loc.latitude}, ${loc.longitude}, '${escapeHtml(loc.name)}')">Select Area</button>
                     </div>
                 `).join("");
             }
@@ -516,11 +1134,55 @@ document.addEventListener("DOMContentLoaded", function () {
             if (changeLiveNdviLayer && changeMap.hasLayer(changeLiveNdviLayer)) changeMap.removeLayer(changeLiveNdviLayer);
         }
 
+        function updateMapLegend(layerType) {
+            const legendTitle = document.getElementById("change-legend-title");
+            const legendGrid = document.getElementById("change-legend-grid");
+            if (!legendTitle || !legendGrid) return;
+
+            if (layerType === "satellite") {
+                legendTitle.textContent = "Copernicus Sentinel-2 True-Color";
+                legendGrid.innerHTML = `
+                    <div class="leg-item"><span class="leg-swatch" style="background:#2e7d32;"></span> <strong>Forest Canopy</strong> (Surface BOA)</div>
+                    <div class="leg-item"><span class="leg-swatch" style="background:#8d6e63;"></span> <strong>Bare Soil / Cleared</strong></div>
+                    <div class="leg-item"><span class="leg-swatch" style="background:#1565c0;"></span> <strong>Water Body</strong></div>
+                    <div class="leg-item"><span class="leg-swatch masked-transparent-swatch"></span> <strong>Cloud / SCL Masked</strong> (Transparent)</div>
+                `;
+            } else if (layerType === "ndvi") {
+                legendTitle.textContent = "Sentinel-2 Live NDVI Scale";
+                legendGrid.innerHTML = `
+                    <div class="leg-item"><span class="leg-swatch ndvi-dense-swatch"></span> <strong>Dense Canopy</strong> (NDVI > 0.60)</div>
+                    <div class="leg-item"><span class="leg-swatch ndvi-mod-swatch"></span> <strong>Moderate Canopy</strong> (0.40–0.60)</div>
+                    <div class="leg-item"><span class="leg-swatch ndvi-sparse-swatch"></span> <strong>Sparse / Grass</strong> (0.20–0.40)</div>
+                    <div class="leg-item"><span class="leg-swatch ndvi-bare-swatch"></span> <strong>Non-Forest / Bare</strong> (&lt; 0.20)</div>
+                    <div class="leg-item"><span class="leg-swatch masked-transparent-swatch"></span> <strong>Masked / Water</strong> (Transparent)</div>
+                `;
+            } else if (layerType === "street") {
+                legendTitle.textContent = "Cartographic Context";
+                legendGrid.innerHTML = `
+                    <div class="leg-item"><span class="leg-swatch" style="background:#ffc107;"></span> <strong>Roads & Access Paths</strong></div>
+                    <div class="leg-item"><span class="leg-swatch" style="background:#90caf9;"></span> <strong>Waterways / Rivers</strong></div>
+                    <div class="leg-item"><span class="leg-swatch" style="background:#a5d6a7;"></span> <strong>Forest Boundary Area</strong></div>
+                `;
+            } else { // raster / change detection default
+                legendTitle.textContent = "Canopy Change Scale";
+                legendGrid.innerHTML = `
+                    <div class="leg-item"><span class="leg-swatch deforested-swatch"></span> <strong>Potential Loss</strong> (ΔNDVI &lt; -0.15)</div>
+                    <div class="leg-item"><span class="leg-swatch stable-dense-swatch"></span> <strong>Dense Forest</strong> (NDVI &gt; 0.60)</div>
+                    <div class="leg-item"><span class="leg-swatch stable-light-swatch"></span> <strong>Light Forest</strong> (0.40–0.60)</div>
+                    <div class="leg-item"><span class="leg-swatch regrowth-swatch"></span> <strong>Canopy Regrowth</strong> (ΔNDVI &gt; +0.15)</div>
+                    <div class="leg-item"><span class="leg-swatch non-forest-swatch"></span> <strong>Non-Forest / Bare</strong> (NDVI &lt; 0.20)</div>
+                    <div class="leg-item"><span class="leg-swatch masked-transparent-swatch"></span> <strong>Cloud Masked</strong> (Transparent)</div>
+                `;
+            }
+            console.log(`[ForestWatch Map Diagnostic] Selected Layer: ${layerType} | Coordinates: (${state.lat.toFixed(4)}, ${state.lon.toFixed(4)})`);
+        }
+
         if (btnStreet) {
             btnStreet.addEventListener("click", () => {
                 resetChangeLayers();
                 btnStreet.classList.add("active");
                 changeMap.addLayer(changeBaseStreet);
+                updateMapLegend("street");
             });
         }
 
@@ -533,6 +1195,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 } else {
                     changeMap.addLayer(changeFallbackSat);
                 }
+                updateMapLegend("satellite");
             });
         }
 
@@ -545,6 +1208,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 } else {
                     changeMap.addLayer(changeFallbackSat);
                 }
+                updateMapLegend("ndvi");
             });
         }
 
@@ -553,11 +1217,14 @@ document.addEventListener("DOMContentLoaded", function () {
                 resetChangeLayers();
                 btnRaster.classList.add("active");
                 changeMap.addLayer(changeFallbackSat);
+                updateMapLegend("raster");
                 // Also activate the 4-panel image tab below
                 const mapTabBtn = document.querySelector("#change-results-panel .tab-button[data-tab='change-map']");
                 if (mapTabBtn) mapTabBtn.click();
             });
         }
+
+        updateMapLegend("raster");
 
         // Opacity Slider
         const opacitySlider = document.getElementById("cmap-opacity-slider");
@@ -920,6 +1587,11 @@ document.addEventListener("DOMContentLoaded", function () {
                 document.getElementById("tbl-nonforest-ha").textContent = `${cs.non_forest.hectares.toFixed(2)} ha`;
                 document.getElementById("tbl-nonforest-km2").textContent = `${cs.non_forest.km2.toFixed(3)} km²`;
                 document.getElementById("tbl-nonforest-pct").textContent = `${cs.non_forest.percentage.toFixed(2)}%`;
+
+                // Diagnostic log
+                console.log(`[ForestWatch Map Diagnostic] Layer: Analysis Results (ID: ${analysisId}) | Valid Pixels: ${cs.total_valid_pixels.toLocaleString()} / ${(cs.total_pixels || cs.total_valid_pixels).toLocaleString()} (${cs.valid_data_pct || 100}%) | Masked: ${cs.masked_pixels || 0}`);
+                console.log(`[ForestWatch Map Diagnostic] ΔNDVI Mean: ${cs.mean_delta_ndvi >= 0 ? '+' : ''}${cs.mean_delta_ndvi.toFixed(4)}`);
+                console.log(`[ForestWatch Map Diagnostic] Class Breakdown: Loss=${cs.deforested.pixels} px (${cs.deforested.percentage}%), Regrowth=${cs.regrowth.pixels} px (${cs.regrowth.percentage}%), Dense=${cs.stable_dense.pixels} px (${cs.stable_dense.percentage}%), Light=${cs.stable_light.pixels} px (${cs.stable_light.percentage}%), Non-Forest=${cs.non_forest.pixels} px (${cs.non_forest.percentage}%)`);
             }
 
             // Scene metadata cards
@@ -1119,7 +1791,8 @@ document.addEventListener("DOMContentLoaded", function () {
         .then(r => r.json())
         .then(data => {
             const items = data.analyses || [];
-            document.getElementById("stat-total-analyses").textContent = items.length;
+            const totalAnalysesEl = document.getElementById("stat-total-analyses");
+            if (totalAnalysesEl) totalAnalysesEl.textContent = items.length;
 
             let alerts = 0;
             items.forEach(it => {
@@ -1127,7 +1800,8 @@ document.addEventListener("DOMContentLoaded", function () {
                     alerts++;
                 }
             });
-            document.getElementById("stat-active-alerts").textContent = alerts;
+            const activeAlertsEl = document.getElementById("stat-active-alerts");
+            if (activeAlertsEl) activeAlertsEl.textContent = alerts;
 
             const tbody = document.getElementById("overview-history-tbody");
             if (tbody) {
@@ -1201,10 +1875,45 @@ document.addEventListener("DOMContentLoaded", function () {
 
     document.getElementById("btn-refresh-history").addEventListener("click", loadReportsHistory);
 
+    // RBAC & Role Management
+    function initUserRole() {
+        const roleSelect = document.getElementById("user-role-select");
+        const badgeTag = document.getElementById("user-badge-tag");
+        if (!roleSelect) return;
+
+        fetch("/api/auth/current-user")
+            .then(res => res.json())
+            .then(data => {
+                if (data.user) {
+                    roleSelect.value = data.user.role;
+                    if (badgeTag) badgeTag.textContent = data.user.badge_id || "AUTH";
+                }
+            })
+            .catch(err => console.warn("Failed to fetch auth user:", err));
+
+        roleSelect.addEventListener("change", function () {
+            const newRole = this.value;
+            fetch("/api/auth/switch-role", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ role: newRole })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (badgeTag && data.current_user) {
+                    badgeTag.textContent = data.current_user.badge_id || "AUTH";
+                }
+            })
+            .catch(err => console.error("Error switching role:", err));
+        });
+    }
+
     // Initial setup
+    initUserRole();
     updateActiveLocationDisplay();
     loadSavedLocations();
     loadOverviewMetrics();
+    loadOperationsDashboard();
 
     // Activate requested workspace from Feature Selection page: ?view=... or ?tab=...
     const urlParams = new URLSearchParams(window.location.search);

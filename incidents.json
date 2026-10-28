@@ -1,0 +1,841 @@
+[
+  {
+    "incident_id": "INC-2026-112",
+    "analysis_id": "analysis_20261028_105339_a292aa",
+    "title": "Minor / Stable Boundary in Sundarbans Mangrove Biosphere",
+    "location_name": "Sundarbans Mangrove Biosphere",
+    "coordinates": {
+      "latitude": 21.9497,
+      "longitude": 89.1833
+    },
+    "radius_meters": 2000,
+    "category": "Minor / Stable Boundary",
+    "priority": "Low",
+    "status": "Resolved",
+    "affected_area_ha": 3.92,
+    "affected_pct": 0.21,
+    "mean_delta_ndvi": 0.0235,
+    "stable_dense_ha": 1717.8,
+    "stable_dense_pct": 91.62,
+    "observation_date": "2025-02-07 04:52:27",
+    "detected_at": "2026-10-28 10:53:56",
+    "data_quality": {
+      "confidence": "High",
+      "cloud_cover_pct": 0.0,
+      "scl_masked": true,
+      "valid_pixels": 46872
+    },
+    "assigned_officer": "Analyst S. Sharma",
+    "assigned_range": "General Forest Division",
+    "deduplication_key": "4c63236054747254d694e249a623fbb8",
+    "field_notes": [
+      {
+        "author": "System Satellite Pipeline",
+        "timestamp": "2026-10-28 10:53:56",
+        "text": "Copernicus Sentinel-2 Level-2A detection identified 3.92 ha potential canopy loss (\u0394NDVI: +0.0235) with SCL quality masking."
+      }
+    ],
+    "activity_log": [
+      {
+        "action": "Detection Generated",
+        "user": "Sentinel-2 Pipeline",
+        "timestamp": "2026-10-28 10:53:56",
+        "details": "Generated from Sentinel-2 run analysis_20261028_105339_a292aa. Assigned priority: Low."
+      }
+    ]
+  },
+  {
+    "incident_id": "INC-2026-111",
+    "analysis_id": "analysis_20261028_105048_b3985e",
+    "title": "Potential Forest Disturbance in Forest Sector (24.8295\u00b0 N, 72.1239\u00b0 E)",
+    "location_name": "Forest Sector (24.8295\u00b0 N, 72.1239\u00b0 E)",
+    "coordinates": {
+      "latitude": 24.8295,
+      "longitude": 72.1239
+    },
+    "radius_meters": 2000,
+    "category": "Potential Forest Disturbance",
+    "priority": "High",
+    "status": "New",
+    "affected_area_ha": 29.36,
+    "affected_pct": 1.5,
+    "mean_delta_ndvi": 0.1483,
+    "stable_dense_ha": 18.56,
+    "stable_dense_pct": 0.95,
+    "observation_date": "2025-01-09 06:02:10",
+    "detected_at": "2026-10-28 10:51:15",
+    "data_quality": {
+      "confidence": "High",
+      "cloud_cover_pct": 0.0,
+      "scl_masked": true,
+      "valid_pixels": 48840
+    },
+    "assigned_officer": "Unassigned (Pending Range Review)",
+    "assigned_range": "Range Division B",
+    "deduplication_key": "1d4dfa2f0c6e9271e6374189fecf9284",
+    "field_notes": [
+      {
+        "author": "System Satellite Pipeline",
+        "timestamp": "2026-10-28 10:51:16",
+        "text": "Copernicus Sentinel-2 Level-2A detection identified 29.36 ha potential canopy loss (\u0394NDVI: +0.1483) with SCL quality masking."
+      }
+    ],
+    "activity_log": [
+      {
+        "action": "Detection Generated",
+        "user": "Sentinel-2 Pipeline",
+        "timestamp": "2026-10-28 10:51:16",
+        "details": "Generated from Sentinel-2 run analysis_20261028_105048_b3985e. Assigned priority: High."
+      }
+    ],
+    "id": "INC-2026-111",
+    "latitude": 24.8295,
+    "longitude": 72.1239,
+    "affected_ha": 29.36,
+    "range_division": "Range Division B",
+    "detection_type": "Potential Forest Disturbance",
+    "mean_dndvi": 0.1483
+  },
+  {
+    "incident_id": "INC-2026-110",
+    "analysis_id": "analysis_20261028_104647_5fc588",
+    "title": "Severe Canopy Loss in Forest Sector (24.6464\u00b0 N, 72.7680\u00b0 E)",
+    "location_name": "Forest Sector (24.6464\u00b0 N, 72.7680\u00b0 E)",
+    "coordinates": {
+      "latitude": 24.6464,
+      "longitude": 72.768
+    },
+    "radius_meters": 2000,
+    "category": "Severe Canopy Loss",
+    "priority": "Critical",
+    "status": "Assigned",
+    "affected_area_ha": 334.68,
+    "affected_pct": 17.21,
+    "mean_delta_ndvi": -0.0743,
+    "stable_dense_ha": 326.56,
+    "stable_dense_pct": 16.79,
+    "observation_date": "2026-04-21 05:52:10",
+    "detected_at": "2026-10-28 10:47:12",
+    "data_quality": {
+      "confidence": "High",
+      "cloud_cover_pct": 0.0,
+      "scl_masked": true,
+      "valid_pixels": 48620
+    },
+    "assigned_officer": "Range Officer Rajesh Kumar",
+    "assigned_range": "Range Division A (Northern Beat)",
+    "deduplication_key": "de13b2e82950159b8b7e72c85c974973",
+    "field_notes": [
+      {
+        "author": "System Satellite Pipeline",
+        "timestamp": "2026-10-28 10:47:13",
+        "text": "Copernicus Sentinel-2 Level-2A detection identified 334.68 ha potential canopy loss (\u0394NDVI: -0.0743) with SCL quality masking."
+      }
+    ],
+    "activity_log": [
+      {
+        "action": "Detection Generated",
+        "user": "Sentinel-2 Pipeline",
+        "timestamp": "2026-10-28 10:47:13",
+        "details": "Generated from Sentinel-2 run analysis_20261028_104647_5fc588. Assigned priority: Critical."
+      }
+    ],
+    "id": "INC-2026-110",
+    "latitude": 24.6464,
+    "longitude": 72.768,
+    "affected_ha": 334.68,
+    "range_division": "Range Division A (Northern Beat)",
+    "detection_type": "Severe Canopy Loss",
+    "mean_dndvi": -0.0743
+  },
+  {
+    "incident_id": "INC-2026-109",
+    "analysis_id": "analysis_20261028_102205_05a60b",
+    "title": "Potential Forest Disturbance in Forest Sector (24.6464\u00b0 N, 72.7680\u00b0 E)",
+    "location_name": "Forest Sector (24.6464\u00b0 N, 72.7680\u00b0 E)",
+    "coordinates": {
+      "latitude": 24.6464,
+      "longitude": 72.768
+    },
+    "radius_meters": 2000,
+    "category": "Potential Forest Disturbance",
+    "priority": "High",
+    "status": "New",
+    "affected_area_ha": 35.84,
+    "affected_pct": 1.84,
+    "mean_delta_ndvi": 0.1562,
+    "stable_dense_ha": 692.56,
+    "stable_dense_pct": 35.61,
+    "observation_date": "2024-11-12 05:52:12",
+    "detected_at": "2026-10-28 10:22:29",
+    "data_quality": {
+      "confidence": "High",
+      "cloud_cover_pct": 0.0,
+      "scl_masked": true,
+      "valid_pixels": 48620
+    },
+    "assigned_officer": "Unassigned (Pending Range Review)",
+    "assigned_range": "Range Division B",
+    "deduplication_key": "f0170a37d591472867b26e4a50de925e",
+    "field_notes": [
+      {
+        "author": "System Satellite Pipeline",
+        "timestamp": "2026-10-28 10:22:29",
+        "text": "Copernicus Sentinel-2 Level-2A detection identified 35.84 ha potential canopy loss (\u0394NDVI: +0.1562) with SCL quality masking."
+      }
+    ],
+    "activity_log": [
+      {
+        "action": "Detection Generated",
+        "user": "Sentinel-2 Pipeline",
+        "timestamp": "2026-10-28 10:22:29",
+        "details": "Generated from Sentinel-2 run analysis_20261028_102205_05a60b. Assigned priority: High."
+      }
+    ],
+    "id": "INC-2026-109",
+    "latitude": 24.6464,
+    "longitude": 72.768,
+    "affected_ha": 35.84,
+    "range_division": "Range Division B",
+    "detection_type": "Potential Forest Disturbance",
+    "mean_dndvi": 0.1562
+  },
+  {
+    "incident_id": "INC-2026-100",
+    "analysis_id": "test_pipeline_01",
+    "title": "Severe Canopy Loss in Western Ghats Moist Deciduous Forest",
+    "location_name": "Western Ghats Moist Deciduous Forest",
+    "coordinates": {
+      "latitude": 15.0,
+      "longitude": 75.0
+    },
+    "radius_meters": 2000,
+    "category": "Severe Canopy Loss",
+    "priority": "Critical",
+    "status": "Assigned",
+    "affected_area_ha": 64.0,
+    "affected_pct": 3.72,
+    "mean_delta_ndvi": 0.0315,
+    "stable_dense_ha": 438.52,
+    "stable_dense_pct": 25.46,
+    "observation_date": "2023-01-01 05:34:54",
+    "detected_at": "2026-10-27 22:31:04",
+    "data_quality": {
+      "confidence": "High",
+      "cloud_cover_pct": 0.0,
+      "scl_masked": true,
+      "valid_pixels": 43056
+    },
+    "assigned_officer": "Range Officer Kumar",
+    "assigned_range": "North Beat",
+    "deduplication_key": "97471807e2f5541a18b7c389879459fd",
+    "field_notes": [
+      {
+        "author": "System Satellite Pipeline",
+        "timestamp": "2026-10-27 22:31:04",
+        "text": "Copernicus Sentinel-2 Level-2A detection identified 64.00 ha potential canopy loss (\u0394NDVI: +0.0315) with SCL quality masking."
+      },
+      {
+        "author": "Beat Guard S. Patel",
+        "timestamp": "2026-10-28 08:36:54",
+        "text": "Canopy loss verified; recent selective thinning observed.",
+        "photo_url": null
+      },
+      {
+        "author": "Test DFO",
+        "timestamp": "2026-10-28 08:36:54",
+        "text": "[Status: Assigned] Assigned for ground-truthing"
+      },
+      {
+        "author": "Beat Guard S. Patel",
+        "timestamp": "2026-10-28 08:43:15",
+        "text": "Canopy loss verified; recent selective thinning observed.",
+        "photo_url": null
+      },
+      {
+        "author": "Test DFO",
+        "timestamp": "2026-10-28 08:43:15",
+        "text": "[Status: Assigned] Assigned for ground-truthing"
+      },
+      {
+        "author": "Beat Guard S. Patil",
+        "timestamp": "2026-10-28 08:43:48",
+        "text": "Fresh illegal logging stumps identified at 15.01N, 75.02E",
+        "photo_url": "/static/uploads/evidence/INC-2026-100/20261028_084348_bf56b9_tree_stump_evidence.jpg"
+      },
+      {
+        "author": "Beat Guard S. Patil",
+        "timestamp": "2026-10-28 08:46:41",
+        "text": "Fresh illegal logging stumps identified at 15.01N, 75.02E",
+        "photo_url": "/static/uploads/evidence/INC-2026-100/20261028_084641_863fb9_tree_stump_evidence.jpg"
+      },
+      {
+        "author": "Beat Guard S. Patil",
+        "timestamp": "2026-10-28 08:47:01",
+        "text": "Fresh illegal logging stumps identified at 15.01N, 75.02E",
+        "photo_url": "/static/uploads/evidence/INC-2026-100/20261028_084701_361b69_tree_stump_evidence.jpg"
+      },
+      {
+        "author": "Beat Guard S. Patel",
+        "timestamp": "2026-10-28 08:47:24",
+        "text": "Canopy loss verified; recent selective thinning observed.",
+        "photo_url": null
+      },
+      {
+        "author": "Test DFO",
+        "timestamp": "2026-10-28 08:47:24",
+        "text": "[Status: Assigned] Assigned for ground-truthing"
+      },
+      {
+        "author": "Beat Guard S. Patel",
+        "timestamp": "2026-10-28 10:01:44",
+        "text": "Canopy loss verified; recent selective thinning observed.",
+        "photo_url": null
+      },
+      {
+        "author": "Test DFO",
+        "timestamp": "2026-10-28 10:01:44",
+        "text": "[Status: Assigned] Assigned for ground-truthing"
+      },
+      {
+        "author": "Beat Guard S. Patil",
+        "timestamp": "2026-10-28 10:01:53",
+        "text": "Fresh illegal logging stumps identified at 15.01N, 75.02E",
+        "photo_url": "/static/uploads/evidence/INC-2026-100/20261028_100153_7e8c8e_tree_stump_evidence.jpg"
+      }
+    ],
+    "activity_log": [
+      {
+        "action": "Detection Generated",
+        "user": "Sentinel-2 Pipeline",
+        "timestamp": "2026-10-27 22:31:04",
+        "details": "Generated from Sentinel-2 run test_pipeline_01. Assigned priority: Critical."
+      },
+      {
+        "action": "Field Note Added",
+        "user": "Beat Guard S. Patel",
+        "timestamp": "2026-10-28 08:36:54",
+        "details": "Canopy loss verified; recent selective thinning observed."
+      },
+      {
+        "action": "Officer Assigned",
+        "user": "Admin",
+        "timestamp": "2026-10-28 08:36:54",
+        "details": "Reassigned from 'Range Officer Rajesh Kumar' to 'Range Officer Kumar' (Southern Sector)."
+      },
+      {
+        "action": "Status Transition",
+        "user": "Test DFO",
+        "timestamp": "2026-10-28 08:36:54",
+        "details": "Status updated from 'Assigned' to 'Assigned'. Assigned for ground-truthing"
+      },
+      {
+        "action": "Field Note Added",
+        "user": "Beat Guard S. Patel",
+        "timestamp": "2026-10-28 08:43:15",
+        "details": "Canopy loss verified; recent selective thinning observed."
+      },
+      {
+        "action": "Officer Assigned",
+        "user": "Admin",
+        "timestamp": "2026-10-28 08:43:15",
+        "details": "Reassigned from 'Range Officer Kumar' to 'Range Officer Kumar' (Southern Sector)."
+      },
+      {
+        "action": "Status Transition",
+        "user": "Test DFO",
+        "timestamp": "2026-10-28 08:43:15",
+        "details": "Status updated from 'Assigned' to 'Assigned'. Assigned for ground-truthing"
+      },
+      {
+        "action": "Field Note Added",
+        "user": "Beat Guard S. Patil",
+        "timestamp": "2026-10-28 08:43:48",
+        "details": "[Photo Attached] Fresh illegal logging stumps identified at 15.01N, 75.02E"
+      },
+      {
+        "action": "Officer Assigned",
+        "user": "Shri R. Sharma, IFS",
+        "timestamp": "2026-10-28 08:43:48",
+        "details": "Reassigned from 'Range Officer Kumar' to 'Range Officer Kumar' (North Beat)."
+      },
+      {
+        "action": "Field Note Added",
+        "user": "Beat Guard S. Patil",
+        "timestamp": "2026-10-28 08:46:41",
+        "details": "[Photo Attached] Fresh illegal logging stumps identified at 15.01N, 75.02E"
+      },
+      {
+        "action": "Officer Assigned",
+        "user": "Shri R. Sharma, IFS",
+        "timestamp": "2026-10-28 08:46:41",
+        "details": "Reassigned from 'Range Officer Kumar' to 'Range Officer Kumar' (North Beat)."
+      },
+      {
+        "action": "Field Note Added",
+        "user": "Beat Guard S. Patil",
+        "timestamp": "2026-10-28 08:47:01",
+        "details": "[Photo Attached] Fresh illegal logging stumps identified at 15.01N, 75.02E"
+      },
+      {
+        "action": "Officer Assigned",
+        "user": "Shri R. Sharma, IFS",
+        "timestamp": "2026-10-28 08:47:01",
+        "details": "Reassigned from 'Range Officer Kumar' to 'Range Officer Kumar' (North Beat)."
+      },
+      {
+        "action": "Field Note Added",
+        "user": "Beat Guard S. Patel",
+        "timestamp": "2026-10-28 08:47:24",
+        "details": "Canopy loss verified; recent selective thinning observed."
+      },
+      {
+        "action": "Officer Assigned",
+        "user": "Admin",
+        "timestamp": "2026-10-28 08:47:24",
+        "details": "Reassigned from 'Range Officer Kumar' to 'Range Officer Kumar' (Southern Sector)."
+      },
+      {
+        "action": "Status Transition",
+        "user": "Test DFO",
+        "timestamp": "2026-10-28 08:47:24",
+        "details": "Status updated from 'Assigned' to 'Assigned'. Assigned for ground-truthing"
+      },
+      {
+        "action": "Officer Assigned",
+        "user": "Divisional Forest Officer",
+        "timestamp": "2026-10-28 09:14:26",
+        "details": "Reassigned from 'Range Officer Kumar' to 'Range Officer Kumar' (Southern Sector)."
+      },
+      {
+        "action": "Status Transition",
+        "user": "Range Officer (Command Center)",
+        "timestamp": "2026-10-28 09:14:36",
+        "details": "Status updated from 'Assigned' to 'Reviewed'."
+      },
+      {
+        "action": "Officer Assigned",
+        "user": "Divisional Forest Officer",
+        "timestamp": "2026-10-28 09:14:37",
+        "details": "Reassigned from 'Range Officer Kumar' to 'Range Officer Kumar' (Southern Sector)."
+      },
+      {
+        "action": "Officer Assigned",
+        "user": "Divisional Forest Officer",
+        "timestamp": "2026-10-28 09:14:48",
+        "details": "Reassigned from 'Range Officer Kumar' to 'Kumar s' (Southern Sector)."
+      },
+      {
+        "action": "Field Note Added",
+        "user": "Beat Guard S. Patel",
+        "timestamp": "2026-10-28 10:01:44",
+        "details": "Canopy loss verified; recent selective thinning observed."
+      },
+      {
+        "action": "Officer Assigned",
+        "user": "Admin",
+        "timestamp": "2026-10-28 10:01:44",
+        "details": "Reassigned from 'Kumar s' to 'Range Officer Kumar' (Southern Sector)."
+      },
+      {
+        "action": "Status Transition",
+        "user": "Test DFO",
+        "timestamp": "2026-10-28 10:01:44",
+        "details": "Status updated from 'Assigned' to 'Assigned'. Assigned for ground-truthing"
+      },
+      {
+        "action": "Field Note Added",
+        "user": "Beat Guard S. Patil",
+        "timestamp": "2026-10-28 10:01:53",
+        "details": "[Photo Attached] Fresh illegal logging stumps identified at 15.01N, 75.02E"
+      },
+      {
+        "action": "Officer Assigned",
+        "user": "Shri R. Sharma, IFS",
+        "timestamp": "2026-10-28 10:01:53",
+        "details": "Reassigned from 'Range Officer Kumar' to 'Range Officer Kumar' (North Beat)."
+      }
+    ],
+    "id": "INC-2026-100",
+    "latitude": 15.0,
+    "longitude": 75.0,
+    "affected_ha": 64.0,
+    "range_division": "North Beat",
+    "detection_type": "Severe Canopy Loss",
+    "mean_dndvi": 0.0315,
+    "map_url": "/static/sentinel_output/test_pipeline_01/temporal_comparison_test_pipeline_01.png",
+    "chart_url": "/static/sentinel_output/test_pipeline_01/forest_classification_test_pipeline_01.png",
+    "report_url": "/report?id=test_pipeline_01",
+    "pdf_url": "/export/pdf/test_pipeline_01",
+    "csv_url": "/export/csv/test_pipeline_01"
+  },
+  {
+    "incident_id": "INC-2026-104",
+    "analysis_id": "analysis_20261028_002011_8239cd",
+    "title": "Severe Canopy Loss in Forest Sector (24.5696\u00b0 N, 72.6440\u00b0 E)",
+    "location_name": "Forest Sector (24.5696\u00b0 N, 72.6440\u00b0 E)",
+    "coordinates": {
+      "latitude": 24.5696,
+      "longitude": 72.644
+    },
+    "radius_meters": 2000,
+    "category": "Severe Canopy Loss",
+    "priority": "Critical",
+    "status": "Assigned",
+    "affected_area_ha": 69.0,
+    "affected_pct": 3.55,
+    "mean_delta_ndvi": 0.2324,
+    "stable_dense_ha": 451.24,
+    "stable_dense_pct": 23.2,
+    "observation_date": "2024-11-12 05:52:12",
+    "detected_at": "2026-10-28 00:20:37",
+    "data_quality": {
+      "confidence": "High",
+      "cloud_cover_pct": 0.0,
+      "scl_masked": true,
+      "valid_pixels": 48620
+    },
+    "assigned_officer": "Range Officer Rajesh Kumar",
+    "assigned_range": "Range Division A (Northern Beat)",
+    "deduplication_key": "9c75c9354e167990c40c1f8bcaf57aa9",
+    "field_notes": [
+      {
+        "author": "System Satellite Pipeline",
+        "timestamp": "2026-10-28 00:20:37",
+        "text": "Copernicus Sentinel-2 Level-2A detection identified 69.00 ha potential canopy loss (\u0394NDVI: +0.2324) with SCL quality masking."
+      }
+    ],
+    "activity_log": [
+      {
+        "action": "Detection Generated",
+        "user": "Sentinel-2 Pipeline",
+        "timestamp": "2026-10-28 00:20:37",
+        "details": "Generated from Sentinel-2 run analysis_20261028_002011_8239cd. Assigned priority: Critical."
+      }
+    ],
+    "id": "INC-2026-104",
+    "latitude": 24.5696,
+    "longitude": 72.644,
+    "affected_ha": 69.0,
+    "range_division": "Range Division A (Northern Beat)",
+    "detection_type": "Severe Canopy Loss",
+    "mean_dndvi": 0.2324,
+    "map_url": "/static/sentinel_output/analysis_20261028_002011_8239cd/temporal_comparison_analysis_20261028_002011_8239cd.png",
+    "chart_url": "/static/sentinel_output/analysis_20261028_002011_8239cd/forest_classification_analysis_20261028_002011_8239cd.png",
+    "report_url": "/report?id=analysis_20261028_002011_8239cd",
+    "pdf_url": "/export/pdf/analysis_20261028_002011_8239cd",
+    "csv_url": "/export/csv/analysis_20261028_002011_8239cd"
+  },
+  {
+    "incident_id": "INC-2026-106",
+    "analysis_id": "analysis_20261028_005029_22fe84",
+    "title": "Severe Canopy Loss in Kaziranga National Park",
+    "location_name": "Kaziranga National Park",
+    "coordinates": {
+      "latitude": 26.6638,
+      "longitude": 93.354
+    },
+    "radius_meters": 2000,
+    "category": "Severe Canopy Loss",
+    "priority": "Critical",
+    "status": "Assigned",
+    "affected_area_ha": 76.88,
+    "affected_pct": 1.7,
+    "mean_delta_ndvi": 0.1683,
+    "stable_dense_ha": 2229.88,
+    "stable_dense_pct": 49.38,
+    "observation_date": "2018-12-10 04:30:59",
+    "detected_at": "2026-10-28 00:50:57",
+    "data_quality": {
+      "confidence": "High",
+      "cloud_cover_pct": 0.0,
+      "scl_masked": true,
+      "valid_pixels": 112895
+    },
+    "assigned_officer": "Range Officer Rajesh Kumar",
+    "assigned_range": "Range Division A (Northern Beat)",
+    "deduplication_key": "d20d40e612e00083ca2fdb9f28e210ab",
+    "field_notes": [
+      {
+        "author": "System Satellite Pipeline",
+        "timestamp": "2026-10-28 00:50:57",
+        "text": "Copernicus Sentinel-2 Level-2A detection identified 76.88 ha potential canopy loss (\u0394NDVI: +0.1683) with SCL quality masking."
+      }
+    ],
+    "activity_log": [
+      {
+        "action": "Detection Generated",
+        "user": "Sentinel-2 Pipeline",
+        "timestamp": "2026-10-28 00:50:57",
+        "details": "Generated from Sentinel-2 run analysis_20261028_005029_22fe84. Assigned priority: Critical."
+      }
+    ],
+    "id": "INC-2026-106",
+    "latitude": 26.6638,
+    "longitude": 93.354,
+    "affected_ha": 76.88,
+    "range_division": "Range Division A (Northern Beat)",
+    "detection_type": "Severe Canopy Loss",
+    "mean_dndvi": 0.1683
+  },
+  {
+    "incident_id": "INC-2026-101",
+    "analysis_id": "analysis_20261027_233817_6b92f0",
+    "title": "Potential Forest Disturbance in Forest Sector (24.6464\u00b0 N, 72.7680\u00b0 E)",
+    "location_name": "Forest Sector (24.6464\u00b0 N, 72.7680\u00b0 E)",
+    "coordinates": {
+      "latitude": 24.6464,
+      "longitude": 72.768
+    },
+    "radius_meters": 2000,
+    "category": "Potential Forest Disturbance",
+    "priority": "High",
+    "status": "New",
+    "affected_area_ha": 55.2,
+    "affected_pct": 2.84,
+    "mean_delta_ndvi": -0.0113,
+    "stable_dense_ha": 539.04,
+    "stable_dense_pct": 27.72,
+    "observation_date": "2023-02-26 05:52:15",
+    "detected_at": "2026-10-27 23:38:59",
+    "data_quality": {
+      "confidence": "High",
+      "cloud_cover_pct": 0.0,
+      "scl_masked": true,
+      "valid_pixels": 48620
+    },
+    "assigned_officer": "Unassigned (Pending Range Review)",
+    "assigned_range": "Range Division B",
+    "deduplication_key": "c01f4e45127450d83916e6403cb23604",
+    "field_notes": [
+      {
+        "author": "System Satellite Pipeline",
+        "timestamp": "2026-10-27 23:38:59",
+        "text": "Copernicus Sentinel-2 Level-2A detection identified 55.20 ha potential canopy loss (\u0394NDVI: -0.0113) with SCL quality masking."
+      }
+    ],
+    "activity_log": [
+      {
+        "action": "Detection Generated",
+        "user": "Sentinel-2 Pipeline",
+        "timestamp": "2026-10-27 23:38:59",
+        "details": "Generated from Sentinel-2 run analysis_20261027_233817_6b92f0. Assigned priority: High."
+      }
+    ],
+    "id": "INC-2026-101",
+    "latitude": 24.6464,
+    "longitude": 72.768,
+    "affected_ha": 55.2,
+    "range_division": "Range Division B",
+    "detection_type": "Potential Forest Disturbance",
+    "mean_dndvi": -0.0113
+  },
+  {
+    "incident_id": "INC-2026-105",
+    "analysis_id": "analysis_20261028_004306_419a88",
+    "title": "Potential Forest Disturbance in Forest Sector (24.6069\u00b0 N, 72.8001\u00b0 E)",
+    "location_name": "Forest Sector (24.6069\u00b0 N, 72.8001\u00b0 E)",
+    "coordinates": {
+      "latitude": 24.6069,
+      "longitude": 72.8001
+    },
+    "radius_meters": 2000,
+    "category": "Potential Forest Disturbance",
+    "priority": "High",
+    "status": "New",
+    "affected_area_ha": 27.0,
+    "affected_pct": 0.62,
+    "mean_delta_ndvi": 0.2105,
+    "stable_dense_ha": 1100.4,
+    "stable_dense_pct": 25.19,
+    "observation_date": "2017-10-15 05:52:00",
+    "detected_at": "2026-10-28 00:43:34",
+    "data_quality": {
+      "confidence": "High",
+      "cloud_cover_pct": 0.0,
+      "scl_masked": true,
+      "valid_pixels": 109228
+    },
+    "assigned_officer": "Unassigned (Pending Range Review)",
+    "assigned_range": "Range Division B",
+    "deduplication_key": "1ac6254bbcb0ad0ee274ab17846e8964",
+    "field_notes": [
+      {
+        "author": "System Satellite Pipeline",
+        "timestamp": "2026-10-28 00:43:34",
+        "text": "Copernicus Sentinel-2 Level-2A detection identified 27.00 ha potential canopy loss (\u0394NDVI: +0.2105) with SCL quality masking."
+      }
+    ],
+    "activity_log": [
+      {
+        "action": "Detection Generated",
+        "user": "Sentinel-2 Pipeline",
+        "timestamp": "2026-10-28 00:43:34",
+        "details": "Generated from Sentinel-2 run analysis_20261028_004306_419a88. Assigned priority: High."
+      }
+    ],
+    "id": "INC-2026-105",
+    "latitude": 24.6069,
+    "longitude": 72.8001,
+    "affected_ha": 27.0,
+    "range_division": "Range Division B",
+    "detection_type": "Potential Forest Disturbance",
+    "mean_dndvi": 0.2105
+  },
+  {
+    "incident_id": "INC-2026-102",
+    "analysis_id": "analysis_20261027_234015_0963bc",
+    "title": "Moderate Canopy Thinning in Sundarbans Mangrove Biosphere",
+    "location_name": "Sundarbans Mangrove Biosphere",
+    "coordinates": {
+      "latitude": 21.9497,
+      "longitude": 89.1833
+    },
+    "radius_meters": 2000,
+    "category": "Moderate Canopy Thinning",
+    "priority": "Medium",
+    "status": "Field Verification",
+    "affected_area_ha": 10.28,
+    "affected_pct": 0.55,
+    "mean_delta_ndvi": -0.0103,
+    "stable_dense_ha": 1710.6,
+    "stable_dense_pct": 91.24,
+    "observation_date": "2023-03-05 04:52:22",
+    "detected_at": "2026-10-27 23:40:44",
+    "data_quality": {
+      "confidence": "High",
+      "cloud_cover_pct": 0.0,
+      "scl_masked": true,
+      "valid_pixels": 46872
+    },
+    "assigned_officer": "Forest Beat Guard P. Nayak",
+    "assigned_range": "Southern Buffer Range",
+    "deduplication_key": "ca0d832c76a27970116d5a0060201384",
+    "field_notes": [
+      {
+        "author": "System Satellite Pipeline",
+        "timestamp": "2026-10-27 23:40:44",
+        "text": "Copernicus Sentinel-2 Level-2A detection identified 10.28 ha potential canopy loss (\u0394NDVI: -0.0103) with SCL quality masking."
+      }
+    ],
+    "activity_log": [
+      {
+        "action": "Detection Generated",
+        "user": "Sentinel-2 Pipeline",
+        "timestamp": "2026-10-27 23:40:44",
+        "details": "Generated from Sentinel-2 run analysis_20261027_234015_0963bc. Assigned priority: Medium."
+      }
+    ],
+    "id": "INC-2026-102",
+    "latitude": 21.9497,
+    "longitude": 89.1833,
+    "affected_ha": 10.28,
+    "range_division": "Southern Buffer Range",
+    "detection_type": "Moderate Canopy Thinning",
+    "mean_dndvi": -0.0103
+  },
+  {
+    "incident_id": "INC-2026-103",
+    "analysis_id": "analysis_20261027_234109_219bd5",
+    "title": "Minor / Stable Boundary in Sundarbans Mangrove Biosphere",
+    "location_name": "Sundarbans Mangrove Biosphere",
+    "coordinates": {
+      "latitude": 21.9497,
+      "longitude": 89.1833
+    },
+    "radius_meters": 2000,
+    "category": "Minor / Stable Boundary",
+    "priority": "Low",
+    "status": "Resolved",
+    "affected_area_ha": 0.0,
+    "affected_pct": 0.0,
+    "mean_delta_ndvi": 0.0,
+    "stable_dense_ha": 1714.36,
+    "stable_dense_pct": 91.44,
+    "observation_date": "2023-03-05 04:52:22",
+    "detected_at": "2026-10-27 23:41:38",
+    "data_quality": {
+      "confidence": "High",
+      "cloud_cover_pct": 0.0,
+      "scl_masked": true,
+      "valid_pixels": 46872
+    },
+    "assigned_officer": "Analyst S. Sharma",
+    "assigned_range": "General Forest Division",
+    "deduplication_key": "b6c034ba4f1898eeecdca61f4d4c1945",
+    "field_notes": [
+      {
+        "author": "System Satellite Pipeline",
+        "timestamp": "2026-10-27 23:41:38",
+        "text": "Copernicus Sentinel-2 Level-2A detection identified 0.00 ha potential canopy loss (\u0394NDVI: +0.0000) with SCL quality masking."
+      }
+    ],
+    "activity_log": [
+      {
+        "action": "Detection Generated",
+        "user": "Sentinel-2 Pipeline",
+        "timestamp": "2026-10-27 23:41:38",
+        "details": "Generated from Sentinel-2 run analysis_20261027_234109_219bd5. Assigned priority: Low."
+      }
+    ],
+    "id": "INC-2026-103",
+    "latitude": 21.9497,
+    "longitude": 89.1833,
+    "affected_ha": 0.0,
+    "range_division": "General Forest Division",
+    "detection_type": "Minor / Stable Boundary",
+    "mean_dndvi": 0.0
+  },
+  {
+    "incident_id": "INC-2026-107",
+    "analysis_id": "analysis_20261028_005314_7a6674",
+    "title": "Minor / Stable Boundary in Forest Sector (27.1496\u00b0 N, 94.0952\u00b0 E)",
+    "location_name": "Forest Sector (27.1496\u00b0 N, 94.0952\u00b0 E)",
+    "coordinates": {
+      "latitude": 27.1496,
+      "longitude": 94.0952
+    },
+    "radius_meters": 2000,
+    "category": "Minor / Stable Boundary",
+    "priority": "Low",
+    "status": "Resolved",
+    "affected_area_ha": 0.0,
+    "affected_pct": 0.0,
+    "mean_delta_ndvi": 0.0,
+    "stable_dense_ha": 554.2,
+    "stable_dense_pct": 27.25,
+    "observation_date": "2023-01-08 04:30:51",
+    "detected_at": "2026-10-28 00:53:45",
+    "data_quality": {
+      "confidence": "High",
+      "cloud_cover_pct": 0.0,
+      "scl_masked": true,
+      "valid_pixels": 50850
+    },
+    "assigned_officer": "Analyst S. Sharma",
+    "assigned_range": "General Forest Division",
+    "deduplication_key": "54a5861bf9aa26a338bdc82b3c7ce3c3",
+    "field_notes": [
+      {
+        "author": "System Satellite Pipeline",
+        "timestamp": "2026-10-28 00:53:45",
+        "text": "Copernicus Sentinel-2 Level-2A detection identified 0.00 ha potential canopy loss (\u0394NDVI: +0.0000) with SCL quality masking."
+      }
+    ],
+    "activity_log": [
+      {
+        "action": "Detection Generated",
+        "user": "Sentinel-2 Pipeline",
+        "timestamp": "2026-10-28 00:53:45",
+        "details": "Generated from Sentinel-2 run analysis_20261028_005314_7a6674. Assigned priority: Low."
+      }
+    ],
+    "id": "INC-2026-107",
+    "latitude": 27.1496,
+    "longitude": 94.0952,
+    "affected_ha": 0.0,
+    "range_division": "General Forest Division",
+    "detection_type": "Minor / Stable Boundary",
+    "mean_dndvi": 0.0
+  }
+]

@@ -67,30 +67,47 @@ def calculate_ndvi(red_band, nir_band):
     """
     Calculate Normalized Difference Vegetation Index (NDVI).
     NDVI = (NIR - Red) / (NIR + Red)
+    Valid pixels: finite, valid surface reflectance (> 0.0 and <= 2.0), and non-zero denominator (> 1e-4).
+    Missing, cloudy, shadowed, or zero-filled pixels are set to NaN so they never distort statistics.
     """
     red = np.asarray(red_band, dtype=np.float32)
     nir = np.asarray(nir_band, dtype=np.float32)
 
-    denominator = nir + red
-    mask = denominator > 0.0001
+    # 1. Finite numbers (no NaN or Inf)
+    finite_mask = np.isfinite(red) & np.isfinite(nir)
 
-    ndvi = np.zeros_like(red, dtype=np.float32)
-    ndvi[mask] = (nir[mask] - red[mask]) / denominator[mask]
-    ndvi = np.clip(ndvi, -1.0, 1.0)
+    # 2. Valid surface reflectance (excluding nodata <= 0, e.g. GEE defaultValue=0 or -9999, and out-of-range > 2.0)
+    valid_refl = (red > 0.0) & (nir > 0.0) & (red <= 2.0) & (nir <= 2.0)
+
+    # 3. Non-zero denominator: |NIR + Red| > 1e-4
+    denominator = nir + red
+    valid_denom = np.abs(denominator) > 0.0001
+
+    valid_mask = finite_mask & valid_refl & valid_denom
+
+    ndvi = np.full_like(red, np.nan, dtype=np.float32)
+    ndvi[valid_mask] = np.clip((nir[valid_mask] - red[valid_mask]) / denominator[valid_mask], -1.0, 1.0)
     return ndvi
 
 
 def classify_single_epoch(ndvi_array):
     """
     Classify forest cover for a single date based on peer-reviewed NDVI thresholds.
+    Invalid pixels (NaN) are strictly excluded from the analyzed denominator.
     """
-    valid_mask = ~np.isnan(ndvi_array)
+    valid_mask = ~np.isnan(ndvi_array) & np.isfinite(ndvi_array)
     total_valid = int(np.sum(valid_mask))
+    total_pixels = int(ndvi_array.size)
 
     if total_valid == 0:
-        return np.zeros_like(ndvi_array, dtype=np.uint8), {
-            "total_pixels": 0, "dense_pixels": 0, "light_pixels": 0, "non_forest_pixels": 0,
-            "dense_pct": 0.0, "light_pct": 0.0, "non_forest_pct": 0.0
+        return np.full_like(ndvi_array, 255, dtype=np.uint8), {
+            "total_pixels": total_pixels,
+            "total_valid_pixels": 0,
+            "masked_pixels": total_pixels,
+            "valid_data_pct": 0.0,
+            "dense_pixels": 0, "light_pixels": 0, "non_forest_pixels": 0,
+            "dense_pct": 0.0, "light_pct": 0.0, "non_forest_pct": 0.0,
+            "mean_ndvi": None, "std_ndvi": None, "min_ndvi": None, "max_ndvi": None
         }
 
     dense_mask = valid_mask & (ndvi_array >= NDVI_LIGHT_FOREST_MAX)
@@ -101,65 +118,94 @@ def classify_single_epoch(ndvi_array):
     light_count = int(np.sum(light_mask))
     non_forest_count = int(np.sum(non_forest_mask))
 
-    class_map = np.zeros_like(ndvi_array, dtype=np.uint8)
+    class_map = np.full_like(ndvi_array, 255, dtype=np.uint8)  # 255 = Masked / Invalid
+    class_map[non_forest_mask] = 0
     class_map[light_mask] = 1
     class_map[dense_mask] = 2
 
+    valid_vals = ndvi_array[valid_mask]
+
     stats = {
-        "total_pixels": total_valid,
+        "total_pixels": total_pixels,
+        "total_valid_pixels": total_valid,
+        "masked_pixels": int(total_pixels - total_valid),
+        "valid_data_pct": round((total_valid / total_pixels) * 100.0, 2) if total_pixels > 0 else 0.0,
         "dense_pixels": dense_count,
         "light_pixels": light_count,
         "non_forest_pixels": non_forest_count,
         "dense_pct": round((dense_count / total_valid) * 100.0, 2),
         "light_pct": round((light_count / total_valid) * 100.0, 2),
         "non_forest_pct": round((non_forest_count / total_valid) * 100.0, 2),
-        "mean_ndvi": float(np.nanmean(ndvi_array)),
-        "std_ndvi": float(np.nanstd(ndvi_array)),
-        "min_ndvi": float(np.nanmin(ndvi_array)),
-        "max_ndvi": float(np.nanmax(ndvi_array))
+        "mean_ndvi": round(float(np.mean(valid_vals)), 4),
+        "std_ndvi": round(float(np.std(valid_vals)), 4),
+        "min_ndvi": round(float(np.min(valid_vals)), 4),
+        "max_ndvi": round(float(np.max(valid_vals)), 4)
     }
     return class_map, stats
 
 
 def detect_deforestation(ndvi_baseline, ndvi_recent, meta_baseline, meta_recent):
     """
-    Genuine multi-temporal deforestation and vegetation change detection.
-    Compares two satellite observations (Baseline vs Recent).
+    Genuine multi-temporal vegetation change detection.
+    Compares two satellite observations (Baseline vs Recent) strictly over an explicitly defined comparison mask.
+    Invalid, missing, cloudy, or shadowed pixels are strictly excluded from change statistics and area calculations.
     """
-    delta_ndvi = ndvi_recent - ndvi_baseline
-    valid = ~np.isnan(ndvi_baseline) & ~np.isnan(ndvi_recent)
-    total_valid = int(np.sum(valid))
+    valid_base = ~np.isnan(ndvi_baseline) & np.isfinite(ndvi_baseline)
+    valid_recent = ~np.isnan(ndvi_recent) & np.isfinite(ndvi_recent)
+    comparison_mask = valid_base & valid_recent
+    total_valid = int(np.sum(comparison_mask))
+    total_pixels = int(ndvi_baseline.size)
 
-    was_forest = valid & (ndvi_baseline >= 0.40)
-    was_non_forest = valid & (ndvi_baseline < 0.30)
+    delta_ndvi = np.full_like(ndvi_baseline, np.nan, dtype=np.float32)
+    delta_ndvi[comparison_mask] = ndvi_recent[comparison_mask] - ndvi_baseline[comparison_mask]
 
-    # 1. Deforestation: was forest, and experienced significant vegetative drop
+    scale = meta_recent.get("scale_meters", 20)
+    pixel_area_ha = (scale * scale) / 10000.0
+
+    if total_valid == 0:
+        change_map = np.full_like(ndvi_baseline, 255, dtype=np.uint8)
+        change_stats = {
+            "total_pixels": total_pixels,
+            "total_valid_pixels": 0,
+            "masked_pixels": total_pixels,
+            "valid_data_pct": 0.0,
+            "pixel_resolution_m": scale,
+            "total_area_ha": 0.0,
+            "total_area_km2": 0.0,
+            "mean_delta_ndvi": 0.0,
+            "deforested": {"label": "Potential Vegetation Loss", "pixels": 0, "hectares": 0.0, "km2": 0.0, "percentage": 0.0},
+            "regrowth": {"label": "Vegetation Recovery / Gain", "pixels": 0, "hectares": 0.0, "km2": 0.0, "percentage": 0.0},
+            "stable_dense": {"label": "Stable Dense Canopy", "pixels": 0, "hectares": 0.0, "km2": 0.0, "percentage": 0.0},
+            "stable_light": {"label": "Stable Light Canopy", "pixels": 0, "hectares": 0.0, "km2": 0.0, "percentage": 0.0},
+            "non_forest": {"label": "Persistent Non-Forest", "pixels": 0, "hectares": 0.0, "km2": 0.0, "percentage": 0.0},
+            "risk_level": "Insufficient Data (Cloud / Shadow Masked)"
+        }
+        return change_map, delta_ndvi, change_stats
+
+    was_forest = comparison_mask & (ndvi_baseline >= 0.40)
+    was_non_forest = comparison_mask & (ndvi_baseline < 0.30)
+
+    # 1. Potential Vegetation Loss: was forest, and experienced significant vegetative drop
     deforested_mask = was_forest & (delta_ndvi <= DEFORESTATION_DELTA_THRESHOLD)
 
-    # 2. Regrowth: was non-forest or degraded, and NDVI significantly gained
-    regrowth_mask = was_non_forest & (delta_ndvi >= REGROWTH_DELTA_THRESHOLD) & (ndvi_recent >= 0.45)
+    # 2. Vegetation Gain / Recovery: was non-forest or degraded, and NDVI significantly gained
+    regrowth_mask = was_non_forest & (delta_ndvi >= REGROWTH_DELTA_THRESHOLD) & (ndvi_recent >= 0.40)
 
     # 3. Stable Dense Forest
-    stable_dense_mask = valid & (ndvi_baseline >= NDVI_LIGHT_FOREST_MAX) & (ndvi_recent >= NDVI_LIGHT_FOREST_MAX) & ~deforested_mask
+    stable_dense_mask = comparison_mask & (ndvi_baseline >= NDVI_LIGHT_FOREST_MAX) & (ndvi_recent >= NDVI_LIGHT_FOREST_MAX) & ~deforested_mask
 
     # 4. Stable Light Forest
-    stable_light_mask = valid & (ndvi_recent >= NDVI_NON_FOREST_MAX) & (ndvi_recent < NDVI_LIGHT_FOREST_MAX) & ~deforested_mask & ~regrowth_mask
+    stable_light_mask = comparison_mask & (ndvi_recent >= NDVI_NON_FOREST_MAX) & (ndvi_recent < NDVI_LIGHT_FOREST_MAX) & ~deforested_mask & ~regrowth_mask & ~stable_dense_mask
 
-    # 5. Persistent Non-Forest
-    non_forest_mask = valid & (ndvi_baseline < NDVI_NON_FOREST_MAX) & (ndvi_recent < NDVI_NON_FOREST_MAX) & ~regrowth_mask
+    # 5. Persistent Non-Forest / Other
+    non_forest_mask = comparison_mask & ~deforested_mask & ~regrowth_mask & ~stable_dense_mask & ~stable_light_mask
 
-    remaining = valid & ~deforested_mask & ~regrowth_mask & ~stable_dense_mask & ~stable_light_mask & ~non_forest_mask
-    non_forest_mask = non_forest_mask | remaining
-
-    change_map = np.zeros_like(ndvi_baseline, dtype=np.uint8)
+    change_map = np.full_like(ndvi_baseline, 255, dtype=np.uint8)  # 255 = Masked / Invalid
     change_map[non_forest_mask] = 0
     change_map[stable_light_mask] = 1
     change_map[stable_dense_mask] = 2
     change_map[deforested_mask] = 3
     change_map[regrowth_mask] = 4
-
-    scale = meta_recent.get("scale_meters", 20)
-    pixel_area_ha = (scale * scale) / 10000.0
 
     deforested_pixels = int(np.sum(deforested_mask))
     regrowth_pixels = int(np.sum(regrowth_mask))
@@ -172,58 +218,87 @@ def detect_deforestation(ndvi_baseline, ndvi_recent, meta_baseline, meta_recent)
     stable_dense_ha = round(stable_dense_pixels * pixel_area_ha, 2)
     stable_light_ha = round(stable_light_pixels * pixel_area_ha, 2)
     non_forest_ha = round(non_forest_pixels * pixel_area_ha, 2)
-    total_ha = round(total_valid * pixel_area_ha, 2)
+    total_valid_ha = round(total_valid * pixel_area_ha, 2)
 
-    deforest_pct = (deforested_pixels / total_valid * 100.0) if total_valid > 0 else 0.0
-    if deforest_pct > 10.0 or deforested_ha > 100.0:
-        severity = "Critical Alert"
-    elif deforest_pct > 5.0 or deforested_ha > 30.0:
-        severity = "High Alert"
-    elif deforest_pct > 1.5 or deforested_ha > 5.0:
-        severity = "Moderate Alert"
+    deforest_pct = round((deforested_pixels / total_valid * 100.0), 2)
+    regrowth_pct = round((regrowth_pixels / total_valid * 100.0), 2)
+    stable_dense_pct = round((stable_dense_pixels / total_valid * 100.0), 2)
+    stable_light_pct = round((stable_light_pixels / total_valid * 100.0), 2)
+    non_forest_pct = round((non_forest_pixels / total_valid * 100.0), 2)
+
+    if total_valid < (total_pixels * 0.05):
+        severity = "Insufficient Valid Observations (Heavy Cloud Cover)"
+    elif deforest_pct >= 10.0 or deforested_ha >= 60.0:
+        severity = "Critical Alert (Potential Severe Canopy Loss)"
+    elif deforest_pct >= 3.0 or deforested_ha >= 25.0:
+        severity = "High Alert (Potential Canopy Disturbance)"
+    elif deforest_pct >= 1.0 or deforested_ha >= 5.0:
+        severity = "Moderate Alert (Potential Canopy Thinning)"
     elif deforest_pct > 0.1:
-        severity = "Low Alert"
+        severity = "Low Alert (Minor Localized Shift)"
     else:
         severity = "Minimal / Stable"
 
+    valid_deltas = delta_ndvi[comparison_mask]
+
     change_stats = {
+        "total_pixels": total_pixels,
         "total_valid_pixels": total_valid,
+        "masked_pixels": int(total_pixels - total_valid),
+        "valid_data_pct": round((total_valid / total_pixels) * 100.0, 2) if total_pixels > 0 else 0.0,
         "pixel_resolution_m": scale,
-        "total_area_ha": total_ha,
-        "total_area_km2": round(total_ha / 100.0, 4),
-        "mean_delta_ndvi": float(np.nanmean(delta_ndvi)),
+        "total_area_ha": total_valid_ha,
+        "total_area_km2": round(total_valid_ha / 100.0, 4),
+        "mean_delta_ndvi": round(float(np.mean(valid_deltas)), 4) if len(valid_deltas) > 0 else 0.0,
         "deforested": {
+            "label": "Potential Vegetation Loss",
             "pixels": deforested_pixels,
             "hectares": deforested_ha,
             "km2": round(deforested_ha / 100.0, 4),
-            "percentage": round(deforest_pct, 2)
+            "percentage": deforest_pct
         },
         "regrowth": {
+            "label": "Vegetation Recovery / Gain",
             "pixels": regrowth_pixels,
             "hectares": regrowth_ha,
             "km2": round(regrowth_ha / 100.0, 4),
-            "percentage": round((regrowth_pixels / total_valid * 100.0), 2)
+            "percentage": regrowth_pct
         },
         "stable_dense": {
+            "label": "Stable Dense Canopy",
             "pixels": stable_dense_pixels,
             "hectares": stable_dense_ha,
             "km2": round(stable_dense_ha / 100.0, 4),
-            "percentage": round((stable_dense_pixels / total_valid * 100.0), 2)
+            "percentage": stable_dense_pct
         },
         "stable_light": {
+            "label": "Stable Light Canopy",
             "pixels": stable_light_pixels,
             "hectares": stable_light_ha,
             "km2": round(stable_light_ha / 100.0, 4),
-            "percentage": round((stable_light_pixels / total_valid * 100.0), 2)
+            "percentage": stable_light_pct
         },
         "non_forest": {
+            "label": "Persistent Non-Forest",
             "pixels": non_forest_pixels,
             "hectares": non_forest_ha,
             "km2": round(non_forest_ha / 100.0, 4),
-            "percentage": round((non_forest_pixels / total_valid * 100.0), 2)
+            "percentage": non_forest_pct
         },
         "risk_level": severity
     }
+
+    min_delta = float(np.nanmin(valid_deltas)) if len(valid_deltas) > 0 else 0.0
+    max_delta = float(np.nanmax(valid_deltas)) if len(valid_deltas) > 0 else 0.0
+    logger.info(
+        f"[MAP DIAGNOSTIC] Layer: Multi-Temporal Canopy Change (ΔNDVI) | "
+        f"Valid Pixels: {total_valid:,} / {total_pixels:,} ({change_stats['valid_data_pct']}%) | "
+        f"Masked Pixels: {total_pixels - total_valid:,} | "
+        f"ΔNDVI Range: [{min_delta:+.4f}, {max_delta:+.4f}] (Mean: {change_stats['mean_delta_ndvi']:+.4f}) | "
+        f"Class Distribution: Loss={deforested_pixels} ({deforest_pct}%), Regrowth={regrowth_pixels} ({regrowth_pct}%), "
+        f"Dense={stable_dense_pixels} ({stable_dense_pct}%), Light={stable_light_pixels} ({stable_light_pct}%), "
+        f"Non-Forest={non_forest_pixels} ({non_forest_pct}%), Masked={total_pixels - total_valid}"
+    )
 
     return change_map, delta_ndvi, change_stats
 
@@ -238,13 +313,29 @@ def generate_comprehensive_report(output_dir, analysis_id, meta_baseline, meta_r
     latest_path = os.path.join(BASE_OUTPUT_DIR, "forest_analysis.txt")
 
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
+    is_demo = meta_recent.get("is_demo_data", False) or meta_recent.get("processing_mode") == "DEMO"
+    proc_mode = "DEMO" if is_demo else "REAL"
+    data_src = meta_recent.get("data_source", "DEMO_SYNTHETIC" if is_demo else "COPERNICUS_SENTINEL_2_L2A")
+    provenance = meta_recent.get("provenance", "Copernicus Sentinel-2 Level-2A via Google Earth Engine")
 
-    lines = [
+    lines = []
+    if is_demo:
+        lines.extend([
+            "================================================================================",
+            "*** DEMO DATA NOTICE: THIS REPORT WAS GENERATED USING SYNTHETIC SIMULATION ***  ",
+            "*** NOT ACTUAL SATELLITE OBSERVATIONS. DO NOT USE FOR FIELD INVESTIGATION. ***  ",
+            "================================================================================"
+        ])
+
+    lines.extend([
         "================================================================================",
         "             FORESTWATCH AI - SATELLITE DEFORESTATION REPORT                    ",
         "================================================================================",
         f"Analysis ID:           {analysis_id}",
         f"Generated At:          {now_str}",
+        f"Processing Mode:       {proc_mode}",
+        f"Data Source:           {data_src}",
+        f"Provenance:            {provenance}",
         f"Status:                Analysis Completed Successfully",
         f"Deforestation Risk:    {change_stats['risk_level']}",
         "--------------------------------------------------------------------------------",
@@ -253,14 +344,15 @@ def generate_comprehensive_report(output_dir, analysis_id, meta_baseline, meta_r
         f"Center Coordinates:    Latitude {meta_recent.get('latitude', 'N/A')} deg, Longitude {meta_recent.get('longitude', 'N/A')} deg",
         f"Spatial Resolution:    {meta_recent.get('scale_meters', 20)} meters / pixel",
         f"Grid Matrix Size:      {meta_recent.get('shape', ['N/A', 'N/A'])[0]} rows x {meta_recent.get('shape', ['N/A', 'N/A'])[1]} columns",
-        f"Total Analyzed Area:   {change_stats['total_area_ha']:.2f} hectares ({change_stats['total_area_km2']:.4f} km2)",
+        f"Total Valid Area:      {change_stats['total_area_ha']:.2f} hectares ({change_stats['total_area_km2']:.4f} km2)",
         f"Total Valid Pixels:    {change_stats['total_valid_pixels']:,} pixels",
+        f"Total Masked/Invalid:  {change_stats.get('masked_pixels', 0):,} pixels ({100.0 - change_stats.get('valid_data_pct', 100.0):.2f}%)",
         "",
         "--------------------------------------------------------------------------------",
         "2. SATELLITE OBSERVATIONS & DATA QUALITY",
         "--------------------------------------------------------------------------------",
-        f"Data Source:           {meta_recent.get('source', 'Google Earth Engine')}",
-        f"SCL Quality Mask:      Cloud, shadow, and cirrus filtered pixel-by-pixel",
+        f"Data Source:           {data_src} ({meta_recent.get('source', 'Google Earth Engine')})",
+        f"SCL Quality Mask:      Cloud, shadow, cirrus and invalid reflectance filtered",
         "",
         "Baseline Observation (T1):",
         f"  - Target Query:      {meta_baseline.get('query_start_date', 'N/A')} to {meta_baseline.get('query_end_date', 'N/A')}",
@@ -284,31 +376,32 @@ def generate_comprehensive_report(output_dir, analysis_id, meta_baseline, meta_r
         f"Mean NDVI Delta:       {change_stats['mean_delta_ndvi']:+.4f} (Vegetation index difference T2 - T1)",
         "",
         "--------------------------------------------------------------------------------",
-        "4. MULTI-TEMPORAL DEFORESTATION & CHANGE DETECTION",
+        "4. MULTI-TEMPORAL CHANGE & VEGETATION DETECTION",
         "--------------------------------------------------------------------------------",
-        f"{'Class Category':<25} | {'Pixels':>10} | {'Area (ha)':>12} | {'Area (km2)':>12} | {'% of AOI':>10}",
+        f"{'Class Category':<28} | {'Pixels':>10} | {'Area (ha)':>12} | {'Area (km2)':>12} | {'% of AOI':>10}",
         "-" * 80,
-        f"{'Deforested (Loss)':<25} | {change_stats['deforested']['pixels']:>10,} | {change_stats['deforested']['hectares']:>12.2f} | {change_stats['deforested']['km2']:>12.4f} | {change_stats['deforested']['percentage']:>9.2f}%",
-        f"{'Stable Dense Forest':<25} | {change_stats['stable_dense']['pixels']:>10,} | {change_stats['stable_dense']['hectares']:>12.2f} | {change_stats['stable_dense']['km2']:>12.4f} | {change_stats['stable_dense']['percentage']:>9.2f}%",
-        f"{'Stable Light Forest':<25} | {change_stats['stable_light']['pixels']:>10,} | {change_stats['stable_light']['hectares']:>12.2f} | {change_stats['stable_light']['km2']:>12.4f} | {change_stats['stable_light']['percentage']:>9.2f}%",
-        f"{'Regrowth / Gain':<25} | {change_stats['regrowth']['pixels']:>10,} | {change_stats['regrowth']['hectares']:>12.2f} | {change_stats['regrowth']['km2']:>12.4f} | {change_stats['regrowth']['percentage']:>9.2f}%",
-        f"{'Persistent Non-Forest':<25} | {change_stats['non_forest']['pixels']:>10,} | {change_stats['non_forest']['hectares']:>12.2f} | {change_stats['non_forest']['km2']:>12.4f} | {change_stats['non_forest']['percentage']:>9.2f}%",
+        f"{'Potential Vegetation Loss':<28} | {change_stats['deforested']['pixels']:>10,} | {change_stats['deforested']['hectares']:>12.2f} | {change_stats['deforested']['km2']:>12.4f} | {change_stats['deforested']['percentage']:>9.2f}%",
+        f"{'Stable Dense Forest':<28} | {change_stats['stable_dense']['pixels']:>10,} | {change_stats['stable_dense']['hectares']:>12.2f} | {change_stats['stable_dense']['km2']:>12.4f} | {change_stats['stable_dense']['percentage']:>9.2f}%",
+        f"{'Stable Light Forest':<28} | {change_stats['stable_light']['pixels']:>10,} | {change_stats['stable_light']['hectares']:>12.2f} | {change_stats['stable_light']['km2']:>12.4f} | {change_stats['stable_light']['percentage']:>9.2f}%",
+        f"{'Regrowth / Gain':<28} | {change_stats['regrowth']['pixels']:>10,} | {change_stats['regrowth']['hectares']:>12.2f} | {change_stats['regrowth']['km2']:>12.4f} | {change_stats['regrowth']['percentage']:>9.2f}%",
+        f"{'Persistent Non-Forest':<28} | {change_stats['non_forest']['pixels']:>10,} | {change_stats['non_forest']['hectares']:>12.2f} | {change_stats['non_forest']['km2']:>12.4f} | {change_stats['non_forest']['percentage']:>9.2f}%",
         "-" * 80,
-        f"{'Total Area Analyzed':<25} | {change_stats['total_valid_pixels']:>10,} | {change_stats['total_area_ha']:>12.2f} | {change_stats['total_area_km2']:>12.4f} | {100.00:>9.2f}%",
+        f"{'Total Valid Analyzed Area':<28} | {change_stats['total_valid_pixels']:>10,} | {change_stats['total_area_ha']:>12.2f} | {change_stats['total_area_km2']:>12.4f} | {100.00:>9.2f}%",
         "",
         "--------------------------------------------------------------------------------",
         "5. CONSERVATION GUIDANCE & SCIENTIFIC LIMITATIONS",
         "--------------------------------------------------------------------------------",
         f"Alert Level:           {change_stats['risk_level']}",
-        f"Net Forest Loss:       {change_stats['deforested']['hectares']:.2f} hectares ({change_stats['deforested']['percentage']:.2f}% of monitored zone)",
+        f"Potential Canopy Loss: {change_stats['deforested']['hectares']:.2f} hectares ({change_stats['deforested']['percentage']:.2f}% of monitored zone)",
         "",
         "Scientific Limitations:",
         "- NDVI measures canopy greenness and photosynthetic activity; it is an indicator, not legal verification.",
+        "- Satellite-detected vegetation decline indicates potential disturbance and requires field verification.",
         "- Ground truthing and patrol validation are required before legal or enforcement actions.",
         "- Cloud shadows and topography can cause localized reflectance artifacts despite SCL masking.",
         "================================================================================",
         "End of Report. ForestWatch AI Remote Sensing Monitoring System."
-    ]
+    ])
 
     report_text = "\n".join(lines) + "\n"
 
@@ -332,6 +425,9 @@ def export_pdf_report(analysis_id, summary_dict, report_text, chart_path, map_pa
         pdf.set_auto_page_break(auto=True, margin=15)
         pdf.add_page()
 
+        is_demo = summary_dict.get("is_demo_data", False) or summary_dict.get("processing_mode") == "DEMO"
+        proc_mode = "DEMO (SYNTHETIC SIMULATION)" if is_demo else "REAL SATELLITE (COPERNICUS SENTINEL-2)"
+
         # Header banner
         pdf.set_fill_color(18, 59, 42)  # #123B2A
         pdf.rect(0, 0, 210, 28, 'F')
@@ -346,7 +442,17 @@ def export_pdf_report(analysis_id, summary_dict, report_text, chart_path, map_pa
         pdf.set_xy(10, 15)
         pdf.cell(190, 6, clean_pdf_text("Copernicus Sentinel-2 Surface Reflectance Satellite Analysis"), align='C')
 
-        pdf.set_xy(10, 32)
+        current_y = 32
+        if is_demo:
+            pdf.set_fill_color(220, 53, 69)  # Red warning banner
+            pdf.rect(0, 28, 210, 8, 'F')
+            pdf.set_font('helvetica', 'B', 9)
+            pdf.set_text_color(255, 255, 255)
+            pdf.set_xy(10, 29)
+            pdf.cell(190, 6, clean_pdf_text("*** DEMO MODE: SYNTHETIC DATA FOR EVALUATION ONLY - NOT ACTUAL OBSERVATIONS ***"), align='C')
+            current_y = 38
+
+        pdf.set_xy(10, current_y)
         pdf.set_text_color(33, 33, 33)
 
         # Overview Table
@@ -360,11 +466,14 @@ def export_pdf_report(analysis_id, summary_dict, report_text, chart_path, map_pa
         pdf.cell(95, 6, clean_pdf_text(f"Coordinates: {loc.get('latitude', '')} deg N, {loc.get('longitude', '')} deg E"), border=1)
         pdf.cell(95, 6, clean_pdf_text(f"Status / Risk: {cs.get('risk_level', 'Completed')}"), border=1, new_x='LMARGIN', new_y='NEXT')
 
-        pdf.cell(95, 6, clean_pdf_text(f"Total Area: {cs.get('total_area_ha', 0)} ha ({cs.get('total_area_km2', 0)} km2)"), border=1)
-        pdf.cell(95, 6, clean_pdf_text(f"Deforested Area: {cs.get('deforested', {}).get('hectares', 0)} ha ({cs.get('deforested', {}).get('percentage', 0)}%)"), border=1, new_x='LMARGIN', new_y='NEXT')
+        pdf.cell(95, 6, clean_pdf_text(f"Processing Mode: {proc_mode}"), border=1)
+        pdf.cell(95, 6, clean_pdf_text(f"Total Valid Area: {cs.get('total_area_ha', 0)} ha ({cs.get('total_area_km2', 0)} km2)"), border=1, new_x='LMARGIN', new_y='NEXT')
+
+        pdf.cell(95, 6, clean_pdf_text(f"Potential Loss: {cs.get('deforested', {}).get('hectares', 0)} ha ({cs.get('deforested', {}).get('percentage', 0)}%)"), border=1)
+        pdf.cell(95, 6, clean_pdf_text(f"Mean Delta NDVI: {cs.get('mean_delta_ndvi', 0):+.4f}"), border=1, new_x='LMARGIN', new_y='NEXT')
 
         pdf.cell(95, 6, clean_pdf_text(f"Stable Dense Forest: {cs.get('stable_dense', {}).get('hectares', 0)} ha ({cs.get('stable_dense', {}).get('percentage', 0)}%)"), border=1)
-        pdf.cell(95, 6, clean_pdf_text(f"Mean Delta NDVI: {cs.get('mean_delta_ndvi', 0):+.4f}"), border=1, new_x='LMARGIN', new_y='NEXT')
+        pdf.cell(95, 6, clean_pdf_text(f"Masked/Invalid: {cs.get('masked_pixels', 0)} px ({100.0 - cs.get('valid_data_pct', 100.0):.1f}%)"), border=1, new_x='LMARGIN', new_y='NEXT')
 
         pdf.ln(4)
 
@@ -396,7 +505,7 @@ def export_pdf_report(analysis_id, summary_dict, report_text, chart_path, map_pa
         pdf.multi_cell(186, 4, clean_pdf_text(
             "This report is generated from Copernicus Sentinel-2 Level-2A surface reflectance data processed via Google Earth Engine. "
             "NDVI thresholds indicate changes in canopy photosynthetic activity and are not legal boundaries. "
-            "Ground truthing and patrol validation are recommended prior to official enforcement."
+            "Satellite-detected vegetation decline indicates potential disturbance and requires field verification."
         ))
 
         pdf.output(pdf_path)
@@ -415,11 +524,16 @@ def export_csv_summary(analysis_id, summary_dict, csv_path):
         rows = [
             ["Metric", "Value", "Unit"],
             ["Analysis_ID", analysis_id, ""],
+            ["Processing_Mode", summary_dict.get("processing_mode", "REAL"), ""],
+            ["Data_Source", summary_dict.get("data_source", "COPERNICUS_SENTINEL_2_L2A"), ""],
+            ["Is_Demo_Data", summary_dict.get("is_demo_data", False), ""],
             ["Latitude", loc.get("latitude", ""), "degrees"],
             ["Longitude", loc.get("longitude", ""), "degrees"],
             ["Total_Area_Hectares", cs.get("total_area_ha", 0), "ha"],
             ["Total_Area_Km2", cs.get("total_area_km2", 0), "km2"],
             ["Total_Valid_Pixels", cs.get("total_valid_pixels", 0), "pixels"],
+            ["Total_Masked_Pixels", cs.get("masked_pixels", 0), "pixels"],
+            ["Valid_Data_Pct", cs.get("valid_data_pct", 100.0), "%"],
             ["Mean_Delta_NDVI", cs.get("mean_delta_ndvi", 0), "index"],
             ["Risk_Alert_Level", cs.get("risk_level", "N/A"), ""],
             ["Deforested_Pixels", cs.get("deforested", {}).get("pixels", 0), "pixels"],
@@ -452,41 +566,58 @@ def create_spatial_map(output_dir, analysis_id, ndvi_baseline, ndvi_recent, delt
     fig, axes = plt.subplots(2, 2, figsize=(14, 12))
     plt.subplots_adjust(wspace=0.25, hspace=0.30)
 
+    # Base NDVI Colormap (RdYlGn with transparent masked pixels)
+    cmap_ndvi = plt.colormaps['RdYlGn'].resampled(256).with_extremes(bad='none')
+
     # 1. Baseline NDVI
-    im0 = axes[0, 0].imshow(ndvi_baseline, cmap='RdYlGn', vmin=-0.2, vmax=0.8)
+    im0 = axes[0, 0].imshow(ndvi_baseline, cmap=cmap_ndvi, vmin=-0.1, vmax=0.8)
     axes[0, 0].set_title("1. Baseline NDVI (T1)", fontsize=13, fontweight='bold')
     axes[0, 0].axis('off')
     cbar0 = fig.colorbar(im0, ax=axes[0, 0], fraction=0.046, pad=0.04)
-    cbar0.set_label("NDVI")
+    cbar0.set_label("NDVI (Green: Dense, Tan/Red: Bare)")
 
     # 2. Recent NDVI
-    im1 = axes[0, 1].imshow(ndvi_recent, cmap='RdYlGn', vmin=-0.2, vmax=0.8)
+    im1 = axes[0, 1].imshow(ndvi_recent, cmap=cmap_ndvi, vmin=-0.1, vmax=0.8)
     axes[0, 1].set_title("2. Recent NDVI (T2)", fontsize=13, fontweight='bold')
     axes[0, 1].axis('off')
     cbar1 = fig.colorbar(im1, ax=axes[0, 1], fraction=0.046, pad=0.04)
-    cbar1.set_label("NDVI")
+    cbar1.set_label("NDVI (Green: Dense, Tan/Red: Bare)")
 
-    # 3. Delta NDVI (Change)
-    im2 = axes[1, 0].imshow(delta_ndvi, cmap='coolwarm', vmin=-0.4, vmax=0.4)
+    # 3. Delta NDVI (Change): Red = Loss (negative), Blue = Gain (positive), transparent masked
+    cmap_delta = plt.colormaps['coolwarm_r'].resampled(256).with_extremes(bad='none')
+    im2 = axes[1, 0].imshow(delta_ndvi, cmap=cmap_delta, vmin=-0.4, vmax=0.4)
     axes[1, 0].set_title("3. Vegetation Change (ΔNDVI = T2 - T1)", fontsize=13, fontweight='bold')
     axes[1, 0].axis('off')
     cbar2 = fig.colorbar(im2, ax=axes[1, 0], fraction=0.046, pad=0.04)
     cbar2.set_label("ΔNDVI (Red: Loss, Blue: Gain)")
 
-    # 4. Categorized Change Map
-    cmap = ListedColormap(['#d3d3d3', '#90ee90', '#1b5e20', '#d50000', '#00b0ff'])
-    norm = BoundaryNorm([-0.5, 0.5, 1.5, 2.5, 3.5, 4.5], cmap.N)
-    im3 = axes[1, 1].imshow(change_map, cmap=cmap, norm=norm)
-    axes[1, 1].set_title("4. Multi-Temporal Deforestation Detection", fontsize=13, fontweight='bold')
+    # 4. Categorized Change Map (mask 255 invalid/cloud pixels - transparent, NOT blue!)
+    masked_change = np.ma.masked_where(change_map == 255, change_map)
+    cmap_change = ListedColormap(['#d3d3d3', '#90ee90', '#1b5e20', '#d50000', '#00b0ff']).with_extremes(bad='none', over='none', under='none')
+    norm = BoundaryNorm([-0.5, 0.5, 1.5, 2.5, 3.5, 4.5], cmap_change.N)
+    im3 = axes[1, 1].imshow(masked_change, cmap=cmap_change, norm=norm)
+    axes[1, 1].set_title("4. Multi-Temporal Canopy Disturbance Detection", fontsize=13, fontweight='bold')
     axes[1, 1].axis('off')
 
     cbar3 = fig.colorbar(im3, ax=axes[1, 1], ticks=[0, 1, 2, 3, 4], fraction=0.046, pad=0.04)
-    cbar3.ax.set_yticklabels(['Non-Forest', 'Light Forest', 'Dense Forest', 'Deforested', 'Regrowth'])
+    cbar3.ax.set_yticklabels(['Non-Forest', 'Light Forest', 'Dense Forest', 'Potential Loss', 'Regrowth'])
+
+    is_demo = meta_recent.get("is_demo_data", False) or meta_recent.get("processing_mode") == "DEMO"
+    title_prefix = "[DEMO DATA - SIMULATED OBSERVATIONS] " if is_demo else ""
+    title_color = "#b71c1c" if is_demo else "#1b5e20"
 
     fig.suptitle(
-        f"ForestWatch AI — Sentinel-2 Forest & Deforestation Analysis ({meta_recent.get('latitude', '')} deg, {meta_recent.get('longitude', '')} deg)\n"
-        f"Resolution: {meta_recent.get('scale_meters', 20)}m | SCL Cloud Filtered | Analysis ID: {analysis_id}",
-        fontsize=14, fontweight='bold'
+        f"{title_prefix}ForestWatch AI — Sentinel-2 Forest Analysis ({meta_recent.get('latitude', '')} deg, {meta_recent.get('longitude', '')} deg)\n"
+        f"Resolution: {meta_recent.get('scale_meters', 20)}m | SCL Cloud Masked | Source: {meta_recent.get('data_source', 'COPERNICUS_SENTINEL_2_L2A')} | ID: {analysis_id}",
+        fontsize=13, fontweight='bold', color=title_color
+    )
+
+    logger.info(
+        f"[MAP DIAGNOSTIC] Spatial Map Rendered for Analysis {analysis_id}: "
+        f"Baseline NDVI range: [{np.nanmin(ndvi_baseline):.3f}, {np.nanmax(ndvi_baseline):.3f}], "
+        f"Recent NDVI range: [{np.nanmin(ndvi_recent):.3f}, {np.nanmax(ndvi_recent):.3f}], "
+        f"ΔNDVI range: [{np.nanmin(delta_ndvi):.3f}, {np.nanmax(delta_ndvi):.3f}], "
+        f"Transparent masked pixels: {int(np.sum(change_map == 255))}"
     )
 
     plt.savefig(map_path, dpi=200, bbox_inches='tight')
@@ -726,11 +857,12 @@ def run_analysis_pipeline(analysis_id, params=None, cancel_event=None, progress_
     max_cloud_pct = float(params.get("max_cloud_pct", 25))
     radius_meters = float(params.get("radius_meters", 2000))
     scale = int(params.get("scale", 20))
+    demo_mode = bool(params.get("demo_mode", False))
 
     output_dir = os.path.join(BASE_OUTPUT_DIR, analysis_id)
     os.makedirs(output_dir, exist_ok=True)
 
-    log(f"Starting ForestWatch AI analysis {analysis_id} at ({lat}, {lon})...")
+    log(f"Starting ForestWatch AI analysis {analysis_id} at ({lat}, {lon}) [demo_mode={demo_mode}]...")
 
     if cancel_event and cancel_event.is_set():
         raise InterruptedError("Analysis cancelled by user before data loading.")
@@ -741,7 +873,7 @@ def run_analysis_pipeline(analysis_id, params=None, cancel_event=None, progress_
         baseline_start=baseline_start, baseline_end=baseline_end,
         recent_start=recent_start, recent_end=recent_end,
         radius_meters=radius_meters, scale=scale,
-        max_cloud_pct=max_cloud_pct, cancel_event=cancel_event
+        max_cloud_pct=max_cloud_pct, demo_mode=demo_mode, cancel_event=cancel_event
     )
 
     log(f"Baseline Scene: {meta_base.get('acquisition_date', 'N/A')}, Clouds: {meta_base.get('cloud_percentage', 0)}%")
@@ -785,12 +917,33 @@ def run_analysis_pipeline(analysis_id, params=None, cancel_event=None, progress_
         output_dir, analysis_id, base_stats, recent_stats, change_stats, ndvi_baseline, ndvi_recent
     )
 
+    is_demo = bool(meta_recent.get("is_demo_data", False) or meta_base.get("is_demo_data", False))
+    proc_mode = "DEMO" if is_demo else "REAL"
+    data_src = meta_recent.get("data_source", "DEMO_SYNTHETIC" if is_demo else "COPERNICUS_SENTINEL_2_L2A")
+    provenance = meta_recent.get("provenance", "DEMO DATA: Synthetic simulation" if is_demo else "Copernicus Sentinel-2 Level-2A via Google Earth Engine")
+
     # Machine-readable summary
     summary_data = {
         "analysis_id": analysis_id,
         "type": "bitemporal",
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "status": "COMPLETED",
+        "processing_mode": proc_mode,
+        "data_source": data_src,
+        "is_demo_data": is_demo,
+        "provenance": provenance,
         "location": {"latitude": lat, "longitude": lon},
+        "requested_windows": {
+            "baseline": [baseline_start, baseline_end],
+            "recent": [recent_start, recent_end]
+        },
+        "analysis_geometry": {
+            "type": "Circle",
+            "center": [lat, lon],
+            "radius_meters": radius_meters,
+            "scale_meters": scale
+        },
+        "masking_method": "SCL Scene Classification & Reflectance Range Filtering",
         "baseline_meta": meta_base,
         "recent_meta": meta_recent,
         "base_stats": base_stats,
@@ -856,16 +1009,18 @@ def run_historical_pipeline(analysis_id, params=None, cancel_event=None, progres
     end_year = int(params.get("end_year", 2024))
     radius_meters = float(params.get("radius_meters", 1500))
     scale = int(params.get("scale", 30))
+    demo_mode = bool(params.get("demo_mode", False))
 
     output_dir = os.path.join(BASE_OUTPUT_DIR, analysis_id)
     os.makedirs(output_dir, exist_ok=True)
 
-    log(f"Starting Multi-Year Historical Analysis {analysis_id} for ({lat}, {lon}) across {start_year}-{end_year}...")
+    log(f"Starting Multi-Year Historical Analysis {analysis_id} for ({lat}, {lon}) across {start_year}-{end_year} [demo_mode={demo_mode}]...")
 
     hist_result = gee_data_loader.fetch_multiyear_historical_sentinel2(
         lat=lat, lon=lon,
         start_year=start_year, end_year=end_year,
         radius_meters=radius_meters, scale=scale,
+        demo_mode=demo_mode,
         cancel_event=cancel_event, progress_callback=log
     )
 
@@ -879,20 +1034,34 @@ def run_historical_pipeline(analysis_id, params=None, cancel_event=None, progres
     report_filename = f"historical_analysis_{analysis_id}.txt"
     report_path = os.path.join(output_dir, report_filename)
 
-    lines = [
+    is_demo = bool(hist_result.get("is_demo_data", False))
+    proc_mode = "DEMO" if is_demo else "REAL"
+    data_src = "DEMO_SYNTHETIC" if is_demo else "COPERNICUS_SENTINEL_2_L2A"
+
+    lines = []
+    if is_demo:
+        lines.extend([
+            "================================================================================",
+            "*** DEMO DATA NOTICE: SYNTHETIC HISTORICAL SIMULATION (NOT ACTUAL SATELLITE) ***",
+            "================================================================================"
+        ])
+
+    lines.extend([
         "================================================================================",
         "          FORESTWATCH AI - MULTI-YEAR HISTORICAL SATELLITE REPORT               ",
         "================================================================================",
         f"Analysis ID:           {analysis_id}",
         f"Generated At:          {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}",
         f"Target Coordinates:    Latitude {lat} deg, Longitude {lon} deg",
+        f"Processing Mode:       {proc_mode}",
+        f"Data Source:           {data_src}",
         f"Historical Period:     {start_year} to {end_year} ({len(hist_result.get('years', []))} Years)",
         "--------------------------------------------------------------------------------",
         "ANNUAL NDVI & FOREST COMPOSITION TIME-SERIES",
         "--------------------------------------------------------------------------------",
         f"{'Year':<6} | {'Mean NDVI':>10} | {'Median':>8} | {'Dense %':>9} | {'Light %':>9} | {'YoY Change':>11} | {'Quality'}",
         "-" * 80
-    ]
+    ])
 
     for y in hist_result.get("years", []):
         lines.append(
@@ -914,6 +1083,10 @@ def run_historical_pipeline(analysis_id, params=None, cancel_event=None, progres
         "analysis_id": analysis_id,
         "type": "historical",
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "status": "COMPLETED",
+        "processing_mode": proc_mode,
+        "data_source": data_src,
+        "is_demo_data": is_demo,
         "location": {"latitude": lat, "longitude": lon},
         "period": f"{start_year} - {end_year}",
         "historical_data": hist_result,
